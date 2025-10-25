@@ -21,6 +21,7 @@ class CostModel(Base):
     index_id: Mapped[int] = mapped_column(
         ForeignKey("indices.id", ondelete="CASCADE"), primary_key=True
     )
+    # part now stores absolute grams attributed to the index (not a percentage)
     part: Mapped[float] = mapped_column(Numeric(8, 4), nullable=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
