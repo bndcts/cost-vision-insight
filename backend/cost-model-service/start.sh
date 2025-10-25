@@ -20,19 +20,23 @@ from app.core.config import get_settings
 
 async def check_db():
     settings = get_settings()
-    engine = create_async_engine(settings.database_url, echo=False)
+    db_url = settings.database_url
+    # Mask password in URL for logging
+    masked_url = db_url.split('@')[0].split('://')[0] + '://***@' + db_url.split('@')[1] if '@' in db_url else db_url
+    print(f'Checking database connection: {masked_url}', file=sys.stderr)
+    engine = create_async_engine(db_url, echo=False)
     try:
         async with engine.connect() as conn:
             await conn.execute(text('SELECT 1'))
         await engine.dispose()
         return True
     except Exception as e:
-        print(f'Database not ready: {e}', file=sys.stderr)
+        print(f'Database connection failed: {str(e)}', file=sys.stderr)
         await engine.dispose()
         return False
 
 sys.exit(0 if asyncio.run(check_db()) else 1)
-" 2>/dev/null; do
+"; do
         retry_count=$((retry_count + 1))
         if [ $retry_count -ge $max_retries ]; then
             echo "Error: Database is not available after $max_retries attempts"

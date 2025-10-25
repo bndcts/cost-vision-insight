@@ -8,15 +8,21 @@ import { ArticlesTable } from "@/components/ArticlesTable";
 import { CostModelsTable } from "@/components/CostModelsTable";
 import { SimilarArticles } from "@/components/SimilarArticles";
 import { Model3DViewer } from "@/components/Model3DViewer";
-import { BarChart3 } from "lucide-react";
+import { Card } from "@/components/ui/card";
+import { AlertCircle, BarChart3 } from "lucide-react";
 
 interface ArticleResponse {
   id: number;
   article_name: string;
   description?: string;
+  unit_weight?: number;
   product_specification_filename?: string;
   drawing_filename?: string;
   comment?: string;
+  processing_status: string;
+  processing_error?: string | null;
+  processing_started_at?: string | null;
+  processing_completed_at?: string | null;
   created_at: string;
 }
 
@@ -27,10 +33,13 @@ const Index = () => {
   const [createdArticleId, setCreatedArticleId] = useState<number | null>(null);
   const [createdArticleResponse, setCreatedArticleResponse] =
     useState<ArticleResponse | null>(null);
+  const [processingError, setProcessingError] = useState<string | null>(null);
 
   const handleAnalyze = async (data: ArticleData) => {
     setArticleData(data);
     setIsAnalyzing(true);
+    setShowResults(false);
+    setProcessingError(null);
 
     try {
       // Create FormData object
@@ -76,35 +85,60 @@ const Index = () => {
       }
 
       const result = await response.json();
-      console.log("Analysis result:", result);
+      console.log("Article created:", result);
 
       // Store the created article ID and response
       setCreatedArticleId(result.id);
       setCreatedArticleResponse(result);
 
-      // Show success message with article ID
-      alert(
-        `✅ Article created successfully!\n\nArticle ID: ${result.id}\nName: ${
-          result.article_name
-        }\nCreated at: ${new Date(result.created_at).toLocaleString()}`
-      );
-
-      // Handle the response...
-      handleAnalysisComplete();
+      // LoadingOverlay will now poll for status and call onComplete/onError
     } catch (error) {
       console.error("Error analyzing article:", error);
-      alert(
-        `Error: ${
-          error instanceof Error ? error.message : "Failed to analyze article"
-        }`
+      setProcessingError(
+        error instanceof Error ? error.message : "Failed to analyze article"
       );
       setIsAnalyzing(false);
     }
   };
 
-  const handleAnalysisComplete = () => {
+  const handleAnalysisComplete = async () => {
+    if (!createdArticleId) return;
+
+    try {
+      console.log(`Fetching full article data for ID: ${createdArticleId}`);
+
+      // Fetch the complete article data with extracted weight
+      const response = await fetch(
+        `http://localhost:8000/api/v1/articles/${createdArticleId}`
+      );
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch article: ${response.status}`);
+      }
+
+      const fullArticle: ArticleResponse = await response.json();
+      console.log("Full article data:", fullArticle);
+
+      // Store the complete article data
+      setCreatedArticleResponse(fullArticle);
+
+      // Show results
+      setIsAnalyzing(false);
+      setShowResults(true);
+      setProcessingError(null);
+    } catch (error) {
+      console.error("Error fetching article data:", error);
+      setIsAnalyzing(false);
+      setProcessingError(
+        error instanceof Error ? error.message : "Failed to fetch article data"
+      );
+    }
+  };
+
+  const handleAnalysisError = (error: string) => {
     setIsAnalyzing(false);
-    setShowResults(true);
+    setShowResults(false);
+    setProcessingError(error);
   };
 
   // Mock data for demonstration
@@ -188,7 +222,13 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      {isAnalyzing && <LoadingOverlay onComplete={handleAnalysisComplete} />}
+      {isAnalyzing && createdArticleId && (
+        <LoadingOverlay
+          articleId={createdArticleId}
+          onComplete={handleAnalysisComplete}
+          onError={handleAnalysisError}
+        />
+      )}
 
       {/* Header */}
       <header className="border-b border-border/50 bg-card/30 backdrop-blur-sm">
@@ -216,27 +256,134 @@ const Index = () => {
           <ArticleInput onAnalyze={handleAnalyze} />
         </section>
 
+        {/* Error Display */}
+        {processingError && (
+          <section className="animate-in fade-in slide-in-from-top-4 duration-500">
+            <Card className="p-6 border-destructive/50 bg-destructive/5">
+              <div className="flex items-start gap-4">
+                <AlertCircle className="h-6 w-6 text-destructive flex-shrink-0 mt-0.5" />
+                <div className="space-y-2">
+                  <h3 className="text-lg font-semibold text-destructive">
+                    Processing Failed
+                  </h3>
+                  <p className="text-sm text-muted-foreground">
+                    {processingError}
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-4">
+                    Please check your product specification file and try again.
+                    Common issues include:
+                  </p>
+                  <ul className="text-xs text-muted-foreground list-disc list-inside space-y-1">
+                    <li>OpenAI API key not configured or invalid</li>
+                    <li>File format not supported or corrupted</li>
+                    <li>Network connection issues</li>
+                  </ul>
+                </div>
+              </div>
+            </Card>
+          </section>
+        )}
+
         {/* Results Section */}
         {showResults && (
           <>
             <section className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-              <div>
-                <h2 className="text-2xl font-bold mb-2">Analysis Results</h2>
-                <p className="text-muted-foreground">
-                  Comprehensive cost breakdown and market intelligence for{" "}
-                  <span className="font-semibold text-foreground">
-                    {articleData?.articleName}
-                  </span>
-                  {createdArticleId && (
-                    <span className="ml-2 text-sm">
-                      (Article ID:{" "}
-                      <span className="font-mono font-semibold text-foreground">
-                        {createdArticleId}
-                      </span>
-                      )
+              <div className="space-y-4">
+                <div>
+                  <h2 className="text-2xl font-bold mb-2">Analysis Results</h2>
+                  <p className="text-muted-foreground">
+                    Comprehensive cost breakdown and market intelligence for{" "}
+                    <span className="font-semibold text-foreground">
+                      {articleData?.articleName}
                     </span>
-                  )}
-                </p>
+                    {createdArticleId && (
+                      <span className="ml-2 text-sm">
+                        (Article ID:{" "}
+                        <span className="font-mono font-semibold text-foreground">
+                          {createdArticleId}
+                        </span>
+                        )
+                      </span>
+                    )}
+                  </p>
+                </div>
+
+                {/* Extracted Product Information */}
+                {createdArticleResponse && (
+                  <Card className="p-6 bg-primary/5 border-primary/20">
+                    <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                      <BarChart3 className="h-5 w-5 text-primary" />
+                      Extracted Product Information
+                    </h3>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div className="space-y-1">
+                        <p className="text-sm text-muted-foreground">
+                          Article Name
+                        </p>
+                        <p className="text-lg font-semibold">
+                          {createdArticleResponse.article_name}
+                        </p>
+                      </div>
+                      <div className="space-y-1">
+                        <p className="text-sm text-muted-foreground">
+                          Product Weight
+                        </p>
+                        <p className="text-lg font-semibold">
+                          {createdArticleResponse.unit_weight ? (
+                            <>
+                              {createdArticleResponse.unit_weight.toFixed(2)} kg
+                              <span className="text-sm text-muted-foreground ml-2">
+                                (
+                                {(
+                                  createdArticleResponse.unit_weight * 1000
+                                ).toFixed(0)}
+                                g)
+                              </span>
+                            </>
+                          ) : (
+                            <span className="text-muted-foreground">
+                              Not found
+                            </span>
+                          )}
+                        </p>
+                      </div>
+                      <div className="space-y-1">
+                        <p className="text-sm text-muted-foreground">
+                          Processing Time
+                        </p>
+                        <p className="text-lg font-semibold">
+                          {createdArticleResponse.processing_started_at &&
+                          createdArticleResponse.processing_completed_at ? (
+                            <>
+                              {Math.round(
+                                (new Date(
+                                  createdArticleResponse.processing_completed_at
+                                ).getTime() -
+                                  new Date(
+                                    createdArticleResponse.processing_started_at
+                                  ).getTime()) /
+                                  1000
+                              )}
+                              s
+                            </>
+                          ) : (
+                            <span className="text-muted-foreground">-</span>
+                          )}
+                        </p>
+                      </div>
+                    </div>
+                    {createdArticleResponse.description && (
+                      <div className="mt-4 pt-4 border-t">
+                        <p className="text-sm text-muted-foreground mb-1">
+                          Description
+                        </p>
+                        <p className="text-sm">
+                          {createdArticleResponse.description}
+                        </p>
+                      </div>
+                    )}
+                  </Card>
+                )}
               </div>
 
               {/* Cost Breakdown and 3D Model */}

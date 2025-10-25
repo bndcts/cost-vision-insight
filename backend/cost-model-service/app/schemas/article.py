@@ -37,6 +37,10 @@ class ArticleRead(ArticleBase):
     product_specification_filename: Optional[str] = None
     drawing_filename: Optional[str] = None
     comment: Optional[str] = None
+    processing_status: str
+    processing_error: Optional[str] = None
+    processing_started_at: Optional[datetime] = None
+    processing_completed_at: Optional[datetime] = None
     created_at: datetime
     # Note: file data (bytes) is excluded from read responses for performance
     # Use a separate endpoint to download the actual files

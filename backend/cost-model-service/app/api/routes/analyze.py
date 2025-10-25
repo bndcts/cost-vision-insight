@@ -1,13 +1,14 @@
 from typing import Optional
 import logging
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
+from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPException, UploadFile, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.exc import IntegrityError
 
 from app.api.deps import get_db
 from app.models.article import Article
 from app.schemas.article import ArticleRead
+from app.services.article_processor import process_article_async
 
 logger = logging.getLogger(__name__)
 
@@ -16,6 +17,7 @@ router = APIRouter(prefix="/analyze", tags=["analyze"])
 
 @router.post("/", response_model=ArticleRead, status_code=status.HTTP_201_CREATED)
 async def analyze_article(
+    background_tasks: BackgroundTasks,
     articleName: str = Form(...),
     description: Optional[str] = Form(None),
     productSpecification: UploadFile = File(...),
@@ -25,13 +27,22 @@ async def analyze_article(
     """
     Analyze an article and store it in the database with uploaded files.
     
+    This endpoint:
+    1. Creates the article immediately with status "processing"
+    2. Returns the article with its ID
+    3. Starts background processing to:
+       - Extract metadata from product specification (weight, material, etc.)
+       - Generate cost models using OpenAI
+    
+    Use GET /articles/{id} to poll for processing status and results.
+    
     Accepts:
     - articleName: Name of the article (required)
     - description: Optional description
     - productSpecification: Product specification file (required)
     - drawing: Drawing file (optional)
     
-    Returns the newly created article with id, articleName, and description.
+    Returns the newly created article with id, processing_status="processing".
     """
     
     logger.info(f"Received analyze request for article: {articleName}")
@@ -51,8 +62,8 @@ async def analyze_article(
             drawing_content = await drawing.read()
             drawing_filename = drawing.filename
         
-        # Create article in database
-        logger.info(f"Creating article in database")
+        # Create article in database with "processing" status
+        logger.info(f"Creating article in database with processing status")
         article = Article(
             article_name=articleName,
             description=description,
@@ -60,6 +71,7 @@ async def analyze_article(
             product_specification_filename=spec_filename,
             drawing_file=drawing_content,
             drawing_filename=drawing_filename,
+            processing_status="processing",  # Set initial status
         )
         
         db.add(article)
@@ -67,6 +79,18 @@ async def analyze_article(
         await db.refresh(article)
         
         logger.info(f"Successfully created article with ID: {article.id}")
+        
+        # Start background processing
+        # Note: We need to create a new database session for the background task
+        from app.db.session import SessionLocal
+        
+        async def background_processor():
+            async with SessionLocal() as background_db:
+                await process_article_async(article.id, background_db)
+        
+        background_tasks.add_task(background_processor)
+        logger.info(f"Started background processing for article {article.id}")
+        
         return article
         
     except IntegrityError as e:

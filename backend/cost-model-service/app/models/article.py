@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 
-from sqlalchemy import DateTime, LargeBinary, Numeric, String
+from sqlalchemy import DateTime, LargeBinary, Numeric, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from typing import TYPE_CHECKING, Optional
 
@@ -24,6 +24,24 @@ class Article(Base):
     drawing_file: Mapped[Optional[bytes]] = mapped_column(LargeBinary, nullable=True)
     drawing_filename: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     comment: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    
+    # Processing status fields
+    processing_status: Mapped[str] = mapped_column(
+        String(50), 
+        nullable=False, 
+        default="pending",
+        # Values: "pending", "processing", "completed", "failed"
+    )
+    processing_error: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    processing_started_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
+    processing_completed_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
+    
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,

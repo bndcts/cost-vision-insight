@@ -12,7 +12,9 @@ class Settings(BaseSettings):
         default="postgresql+asyncpg://postgres:postgres@db:5432/cost_model"
     )
     openai_api_key: str | None = None
-    openai_model: str = Field(default="gpt-4o-mini")
+    openai_model: str = Field(default="gpt-5o")
+    index_csv_path: str = Field(default="/app/data/indices.csv")
+    env: str = Field(default="development")
 
     class Config:
         env_file = ".env"
