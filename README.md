@@ -1,73 +1,160 @@
-# Welcome to your Lovable project
+# Cost Vision Insight
 
-## Project info
+Cost modeling and estimation platform with AI-powered analysis.
 
-**URL**: https://lovable.dev/projects/223c0511-c674-4620-8843-cea7c0bac390
+**Stack:** FastAPI + PostgreSQL + React + TypeScript + Tailwind + shadcn/ui
 
-## How can I edit this code?
+## Quick Start
 
-There are several ways of editing your application.
+```bash
+# Start everything
+docker-compose up
 
-**Use Lovable**
+# View logs
+docker-compose logs -f
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/223c0511-c674-4620-8843-cea7c0bac390) and start prompting.
+# Stop everything
+docker-compose down -v
+```
 
-Changes made via Lovable will be committed automatically to this repo.
+**Access:**
 
-**Use your preferred IDE**
+- Frontend: http://localhost:5173
+- Backend API: http://localhost:8000
+- API Docs: http://localhost:8000/docs
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+## Running Services Separately
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+```bash
+# Start individual services
+docker-compose up cost-model-db          # Database only
+docker-compose up cost-model-service     # Backend + DB
+docker-compose up frontend               # Frontend only
 
-Follow these steps:
+# Restart one service (doesn't affect others!)
+docker-compose restart frontend
+docker-compose restart cost-model-service
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+# Rebuild and restart
+docker-compose up -d --build frontend
+```
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+## Development Workflows
 
-# Step 3: Install the necessary dependencies.
-npm i
+### Frontend Development (Recommended)
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
+```bash
+# Backend in Docker
+docker-compose up -d cost-model-db cost-model-service
+
+# Frontend local (instant hot-reload)
+cd frontend
+npm install
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
+### Backend Development (Recommended)
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+```bash
+# Database in Docker
+docker-compose up -d cost-model-db
 
-**Use GitHub Codespaces**
+# Backend local (auto-reload)
+cd backend/cost-model-service
+uv pip install -r requirements.txt
+export CMS_DATABASE_URL="postgresql+asyncpg://postgres:postgres@localhost:5432/cost_model"
+uvicorn app.main:app --reload
+```
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+### Full Local (Best for Active Development)
 
-## What technologies are used for this project?
+```bash
+# Terminal 1: Database
+docker-compose up cost-model-db
 
-This project is built with:
+# Terminal 2: Backend
+cd backend/cost-model-service
+uvicorn app.main:app --reload
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+# Terminal 3: Frontend
+cd frontend
+npm run dev
+```
 
-## How can I deploy this project?
+## Common Commands
 
-Simply open [Lovable](https://lovable.dev/projects/223c0511-c674-4620-8843-cea7c0bac390) and click on Share -> Publish.
+```bash
+# Docker
+docker-compose ps                           # Check status
+docker-compose logs -f cost-model-service   # View logs
+docker-compose build cost-model-service     # Rebuild service
+docker-compose down -v                      # Clean reset
 
-## Can I connect a custom domain to my Lovable project?
+# Backend
+cd backend/cost-model-service
+alembic upgrade head                        # Run migrations
+alembic revision --autogenerate -m "msg"    # Create migration
+uvicorn app.main:app --reload               # Run with hot-reload
 
-Yes, you can!
+# Frontend
+cd frontend
+npm run dev                                 # Development server
+npm run build                               # Production build
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+# Database
+docker-compose exec cost-model-db psql -U postgres -d cost_model
+docker-compose exec cost-model-db psql -U postgres -d cost_model -c "\dt"
+```
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+## Environment Variables
+
+Create `.env` in project root (optional):
+
+```bash
+CMS_DATABASE_URL=postgresql+asyncpg://postgres:postgres@localhost:5432/cost_model
+CMS_OPENAI_API_KEY=your-key-here
+CMS_OPENAI_MODEL=gpt-4o-mini
+```
+
+## Troubleshooting
+
+```bash
+# Database not connecting
+docker-compose down -v && docker-compose up -d
+
+# Port already in use
+lsof -i :8000  # Find process using port
+
+# Clean rebuild
+docker-compose build --no-cache
+docker-compose up
+```
+
+## Project Structure
+
+```
+├── backend/cost-model-service/
+│   ├── alembic/                # Migrations
+│   ├── app/
+│   │   ├── api/routes/         # Endpoints
+│   │   ├── models/             # SQLAlchemy models
+│   │   └── schemas/            # Pydantic schemas
+│   └── requirements.txt
+├── frontend/
+│   └── src/
+│       ├── components/         # React components
+│       └── pages/              # Page components
+└── docker-compose.yml
+```
+
+## API Documentation
+
+Interactive docs: http://localhost:8000/docs
+
+Main endpoints:
+
+- `/api/v1/articles` - Article management
+- `/api/v1/indices` - Price indices
+- `/api/v1/cost-models` - Cost models
+- `/api/v1/orders` - Order history
+- `/api/v1/estimates` - AI cost estimation

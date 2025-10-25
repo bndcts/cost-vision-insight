@@ -1,0 +1,46 @@
+services:
+  cost-model-db:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_DB: cost_model
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - cost_model_db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d cost_model"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  cost-model-service:
+    build:
+      context: ./backend/cost-model-service
+    environment:
+      CMS_DATABASE_URL: postgresql+asyncpg://postgres:postgres@cost-model-db:5432/cost_model
+      CMS_OPENAI_API_KEY: ${CMS_OPENAI_API_KEY:-}
+      CMS_OPENAI_MODEL: ${CMS_OPENAI_MODEL:-gpt-4o-mini}
+    depends_on:
+      cost-model-db:
+        condition: service_healthy
+    ports:
+      - "8000:8000"
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+    environment:
+      VITE_API_URL: http://cost-model-service:8000/api/v1
+    depends_on:
+      cost-model-service:
+        condition: service_started
+    ports:
+      - "5173:5173"
+    restart: unless-stopped
+
+volumes:
+  cost_model_db:
