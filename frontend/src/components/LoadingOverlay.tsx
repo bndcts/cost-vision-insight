@@ -68,7 +68,6 @@ export const LoadingOverlay = ({
           const messages = [
             "Extracting product weight from specification...",
             "Analyzing file content with AI...",
-            "Generating cost models...",
             "Finalizing analysis...",
           ];
           const messageIndex = Math.floor(elapsedTime / 3) % messages.length;

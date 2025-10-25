@@ -329,17 +329,28 @@ const Index = () => {
                           Product Weight
                         </p>
                         <p className="text-lg font-semibold">
-                          {createdArticleResponse.unit_weight ? (
-                            <>
-                              {createdArticleResponse.unit_weight.toFixed(2)} kg
-                              <span className="text-sm text-muted-foreground ml-2">
-                                (
-                                {(
-                                  createdArticleResponse.unit_weight * 1000
-                                ).toFixed(0)}
-                                g)
-                              </span>
-                            </>
+                          {createdArticleResponse.unit_weight !== undefined &&
+                          createdArticleResponse.unit_weight !== null ? (
+                            (() => {
+                              const weightNum = Number(
+                                createdArticleResponse.unit_weight
+                              );
+                              if (Number.isNaN(weightNum)) {
+                                return (
+                                  <span className="text-muted-foreground">
+                                    Not found
+                                  </span>
+                                );
+                              }
+                              return (
+                                <>
+                                  {weightNum.toFixed(2)} kg
+                                  <span className="text-sm text-muted-foreground ml-2">
+                                    ({(weightNum * 1000).toFixed(0)}g)
+                                  </span>
+                                </>
+                              );
+                            })()
                           ) : (
                             <span className="text-muted-foreground">
                               Not found
