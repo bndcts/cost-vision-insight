@@ -10,6 +10,7 @@ import { SimilarArticles } from "@/components/SimilarArticles";
 import { Model3DViewer } from "@/components/Model3DViewer";
 import { Card } from "@/components/ui/card";
 import { AlertCircle, BarChart3 } from "lucide-react";
+import { useArticle } from "@/lib/api";
 
 interface ArticleResponse {
   id: number;
@@ -31,9 +32,11 @@ const Index = () => {
   const [showResults, setShowResults] = useState(false);
   const [articleData, setArticleData] = useState<ArticleData | null>(null);
   const [createdArticleId, setCreatedArticleId] = useState<number | null>(null);
-  const [createdArticleResponse, setCreatedArticleResponse] =
-    useState<ArticleResponse | null>(null);
   const [processingError, setProcessingError] = useState<string | null>(null);
+
+  const { data: createdArticleResponse } = useArticle(
+    showResults ? createdArticleId : null
+  );
 
   const handleAnalyze = async (data: ArticleData) => {
     setArticleData(data);
@@ -87,9 +90,8 @@ const Index = () => {
       const result = await response.json();
       console.log("Article created:", result);
 
-      // Store the created article ID and response
+      // Store the created article ID
       setCreatedArticleId(result.id);
-      setCreatedArticleResponse(result);
 
       // LoadingOverlay will now poll for status and call onComplete/onError
     } catch (error) {
@@ -101,38 +103,12 @@ const Index = () => {
     }
   };
 
-  const handleAnalysisComplete = async () => {
+  const handleAnalysisComplete = () => {
     if (!createdArticleId) return;
 
-    try {
-      console.log(`Fetching full article data for ID: ${createdArticleId}`);
-
-      // Fetch the complete article data with extracted weight
-      const response = await fetch(
-        `http://localhost:8000/api/v1/articles/${createdArticleId}`
-      );
-
-      if (!response.ok) {
-        throw new Error(`Failed to fetch article: ${response.status}`);
-      }
-
-      const fullArticle: ArticleResponse = await response.json();
-      console.log("Full article data:", fullArticle);
-
-      // Store the complete article data
-      setCreatedArticleResponse(fullArticle);
-
-      // Show results
-      setIsAnalyzing(false);
-      setShowResults(true);
-      setProcessingError(null);
-    } catch (error) {
-      console.error("Error fetching article data:", error);
-      setIsAnalyzing(false);
-      setProcessingError(
-        error instanceof Error ? error.message : "Failed to fetch article data"
-      );
-    }
+    setIsAnalyzing(false);
+    setShowResults(true);
+    setProcessingError(null);
   };
 
   const handleAnalysisError = (error: string) => {
@@ -404,7 +380,7 @@ const Index = () => {
               </div>
 
               {/* Price Trend Chart */}
-              <PriceTrendChart data={mockPriceTrend} />
+              <PriceTrendChart articleId={createdArticleResponse?.id || null} />
 
               {/* Database Tables */}
               <div className="space-y-6">

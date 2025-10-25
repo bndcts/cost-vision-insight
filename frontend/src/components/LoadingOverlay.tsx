@@ -1,20 +1,12 @@
 import { useEffect, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { AlertCircle } from "lucide-react";
+import { useArticleStatus } from "@/lib/api";
 
 interface LoadingOverlayProps {
   articleId: number;
   onComplete: () => void;
   onError: (error: string) => void;
-}
-
-interface ArticleStatus {
-  id: number;
-  processing_status: "pending" | "processing" | "completed" | "failed";
-  processing_error: string | null;
-  processing_started_at: string | null;
-  processing_completed_at: string | null;
 }
 
 export const LoadingOverlay = ({
@@ -23,24 +15,21 @@ export const LoadingOverlay = ({
   onError,
 }: LoadingOverlayProps) => {
   const [progress, setProgress] = useState(0);
-  const [stage, setStage] = useState(
-    "Extracting product weight from specification..."
-  );
+  const [stage, setStage] = useState("Uploading file to OpenAI...");
   const [elapsedTime, setElapsedTime] = useState(0);
+  const [startTime] = useState(Date.now());
+
+  const { data: status } = useArticleStatus(articleId);
 
   useEffect(() => {
-    const startTime = Date.now();
     const EXPECTED_DURATION_MS = 60000; // 60 seconds expected
-    let completed = false;
 
-    // Update elapsed time and progress based on expected duration
     const timeInterval = setInterval(() => {
       const elapsed = Date.now() - startTime;
       const elapsedSeconds = Math.floor(elapsed / 1000);
       setElapsedTime(elapsedSeconds);
 
-      if (!completed) {
-        // Progress fills up smoothly over 60 seconds, caps at 95% until completion
+      if (status?.processing_status !== "completed") {
         const timeBasedProgress = Math.min(
           95,
           (elapsed / EXPECTED_DURATION_MS) * 100
@@ -49,63 +38,35 @@ export const LoadingOverlay = ({
       }
     }, 500);
 
-    // Poll backend for actual status
-    const pollStatus = async () => {
-      try {
-        const response = await fetch(
-          `http://localhost:8000/api/v1/articles/${articleId}/status`
-        );
+    return () => clearInterval(timeInterval);
+  }, [startTime, status]);
 
-        if (!response.ok) {
-          throw new Error(`Failed to fetch status: ${response.status}`);
-        }
+  useEffect(() => {
+    if (!status) return;
 
-        const status: ArticleStatus = await response.json();
-        console.log("Article status:", status);
+    if (status.processing_status === "processing") {
+      const elapsed = Date.now() - startTime;
+      const currentSeconds = Math.floor(elapsed / 1000);
+      const messages = [
+        "Uploading file to OpenAI...",
+        "Analyzing material composition...",
+        "Extracting product weight...",
+        "Identifying cost indices...",
+        "Finalizing analysis...",
+      ];
+      const messageIndex = Math.floor(currentSeconds / 10) % messages.length;
+      setStage(messages[messageIndex]);
+    }
 
-        // Update stage based on status
-        if (status.processing_status === "processing") {
-          const elapsed = Date.now() - startTime;
-          const currentSeconds = Math.floor(elapsed / 1000);
-          const messages = [
-            "Uploading file to OpenAI...",
-            "Analyzing material composition...",
-            "Extracting product weight...",
-            "Identifying cost indices...",
-            "Finalizing analysis...",
-          ];
-          const messageIndex =
-            Math.floor(currentSeconds / 10) % messages.length;
-          setStage(messages[messageIndex]);
-        }
-
-        if (status.processing_status === "completed") {
-          completed = true;
-          clearInterval(pollInterval);
-          clearInterval(timeInterval);
-          setProgress(100);
-          setStage("Analysis complete!");
-          setTimeout(() => onComplete(), 500);
-        } else if (status.processing_status === "failed") {
-          clearInterval(pollInterval);
-          clearInterval(timeInterval);
-          const errorMessage =
-            status.processing_error || "Unknown error occurred";
-          onError(errorMessage);
-        }
-      } catch (error) {
-        console.error("Error polling status:", error);
-      }
-    };
-
-    pollStatus();
-    const pollInterval = setInterval(pollStatus, 2000);
-
-    return () => {
-      clearInterval(pollInterval);
-      clearInterval(timeInterval);
-    };
-  }, [articleId, onComplete, onError]);
+    if (status.processing_status === "completed") {
+      setProgress(100);
+      setStage("Analysis complete!");
+      setTimeout(() => onComplete(), 500);
+    } else if (status.processing_status === "failed") {
+      const errorMessage = status.processing_error || "Unknown error occurred";
+      onError(errorMessage);
+    }
+  }, [status, startTime, onComplete, onError]);
 
   return (
     <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center">
