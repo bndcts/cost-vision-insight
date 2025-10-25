@@ -24,6 +24,7 @@ services:
       CMS_OPENAI_API_KEY: ${CMS_OPENAI_API_KEY:-}
       CMS_OPENAI_MODEL: ${CMS_OPENAI_MODEL:-gpt-4o-mini}
       CMS_INDEX_CSV_PATH: ${CMS_INDEX_CSV_PATH:-/app/data/indices.csv}
+      CMS_ENV: development
     depends_on:
       cost-model-db:
         condition: service_healthy
@@ -31,6 +32,7 @@ services:
       - "8000:8000"
     volumes:
       - ./backend/indices.csv:/app/data/indices.csv:ro
+      - ./backend/cost-model-service/app:/app/app:ro # Mount app code for hot-reload
     restart: unless-stopped
 
   frontend:

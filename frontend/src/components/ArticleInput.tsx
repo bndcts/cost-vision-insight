@@ -4,39 +4,42 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
-import { Upload, Sparkles } from "lucide-react";
+import { Upload, Sparkles, FileText, X } from "lucide-react";
 
 interface ArticleInputProps {
   onAnalyze: (data: ArticleData) => void;
 }
 
 export interface ArticleData {
-  name: string;
-  specification: string;
+  articleName: string;
+  productSpecification: File | null;
+  drawing: File | null;
   description: string;
-  image: string | null;
 }
 
 export const ArticleInput = ({ onAnalyze }: ArticleInputProps) => {
   const [formData, setFormData] = useState<ArticleData>({
-    name: "",
-    specification: "",
+    articleName: "",
+    productSpecification: null,
+    drawing: null,
     description: "",
-    image: null,
   });
-  const [imagePreview, setImagePreview] = useState<string | null>(null);
 
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = (
+    e: React.ChangeEvent<HTMLInputElement>,
+    field: "productSpecification" | "drawing"
+  ) => {
     const file = e.target.files?.[0];
     if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        const result = reader.result as string;
-        setImagePreview(result);
-        setFormData({ ...formData, image: result });
-      };
-      reader.readAsDataURL(file);
+      setFormData({ ...formData, [field]: file });
     }
+  };
+
+  const handleRemoveFile = (field: "productSpecification" | "drawing") => {
+    setFormData({ ...formData, [field]: null });
+    // Reset the file input
+    const input = document.getElementById(field) as HTMLInputElement;
+    if (input) input.value = "";
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -48,81 +51,128 @@ export const ArticleInput = ({ onAnalyze }: ArticleInputProps) => {
     <Card className="p-8 shadow-lg">
       <form onSubmit={handleSubmit} className="space-y-6">
         <div className="space-y-2">
-          <Label htmlFor="name" className="text-base font-semibold">
+          <Label htmlFor="articleName" className="text-base font-semibold">
             Article Name
           </Label>
           <Input
-            id="name"
+            id="articleName"
             placeholder="e.g., Precision Steel Bearing Housing"
-            value={formData.name}
-            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+            value={formData.articleName}
+            onChange={(e) =>
+              setFormData({ ...formData, articleName: e.target.value })
+            }
             required
             className="text-base"
           />
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="specification" className="text-base font-semibold">
-            Specification
+          <Label
+            htmlFor="productSpecification"
+            className="text-base font-semibold"
+          >
+            Product Specification <span className="text-destructive">*</span>
           </Label>
-          <Input
-            id="specification"
-            placeholder="e.g., ISO 9001 Certified, 316L Stainless Steel"
-            value={formData.specification}
-            onChange={(e) => setFormData({ ...formData, specification: e.target.value })}
-            required
-            className="text-base"
-          />
+          <div className="space-y-3">
+            <div className="flex items-center gap-4">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() =>
+                  document.getElementById("productSpecification")?.click()
+                }
+                className="flex items-center gap-2"
+              >
+                <Upload className="h-4 w-4" />
+                Upload Document
+              </Button>
+              <input
+                id="productSpecification"
+                type="file"
+                accept=".pdf,.doc,.docx,.txt,.xls,.xlsx"
+                onChange={(e) => handleFileUpload(e, "productSpecification")}
+                className="hidden"
+                required
+              />
+            </div>
+            {formData.productSpecification && (
+              <div className="flex items-center gap-2 p-3 border rounded-lg bg-muted/50">
+                <FileText className="h-4 w-4 text-muted-foreground" />
+                <span className="text-sm flex-1 truncate">
+                  {formData.productSpecification.name}
+                </span>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => handleRemoveFile("productSpecification")}
+                  className="h-6 w-6 p-0"
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="drawing" className="text-base font-semibold">
+            Drawing{" "}
+            <span className="text-sm text-muted-foreground">(Optional)</span>
+          </Label>
+          <div className="space-y-3">
+            <div className="flex items-center gap-4">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => document.getElementById("drawing")?.click()}
+                className="flex items-center gap-2"
+              >
+                <Upload className="h-4 w-4" />
+                Upload Drawing
+              </Button>
+              <input
+                id="drawing"
+                type="file"
+                accept=".pdf,.dwg,.dxf,.png,.jpg,.jpeg,.svg"
+                onChange={(e) => handleFileUpload(e, "drawing")}
+                className="hidden"
+              />
+            </div>
+            {formData.drawing && (
+              <div className="flex items-center gap-2 p-3 border rounded-lg bg-muted/50">
+                <FileText className="h-4 w-4 text-muted-foreground" />
+                <span className="text-sm flex-1 truncate">
+                  {formData.drawing.name}
+                </span>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => handleRemoveFile("drawing")}
+                  className="h-6 w-6 p-0"
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+            )}
+          </div>
         </div>
 
         <div className="space-y-2">
           <Label htmlFor="description" className="text-base font-semibold">
-            Description
+            Description{" "}
+            <span className="text-sm text-muted-foreground">(Optional)</span>
           </Label>
           <Textarea
             id="description"
-            placeholder="Detailed description of the article, including dimensions, materials, and manufacturing requirements..."
+            placeholder="Add any additional context or special requirements..."
             value={formData.description}
-            onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-            required
-            className="min-h-32 text-base"
+            onChange={(e) =>
+              setFormData({ ...formData, description: e.target.value })
+            }
+            className="min-h-24 text-base"
           />
-        </div>
-
-        <div className="space-y-2">
-          <Label htmlFor="image" className="text-base font-semibold">
-            Technical Drawing / Image
-          </Label>
-          <div className="flex items-center gap-4">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => document.getElementById("image")?.click()}
-              className="flex items-center gap-2"
-            >
-              <Upload className="h-4 w-4" />
-              Upload Image
-            </Button>
-            <input
-              id="image"
-              type="file"
-              accept="image/*"
-              onChange={handleImageUpload}
-              className="hidden"
-            />
-            {imagePreview && (
-              <span className="text-sm text-muted-foreground">Image uploaded</span>
-            )}
-          </div>
-          {imagePreview && (
-            <div className="mt-4 border rounded-lg overflow-hidden">
-              <img
-                src={imagePreview}
-                alt="Preview"
-                className="w-full h-48 object-contain bg-muted"
-              />
-            </div>
-          )}
         </div>
 
         <Button

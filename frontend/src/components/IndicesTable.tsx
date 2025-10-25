@@ -8,51 +8,64 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
+import { mockIndices } from "@/lib/mockData";
 
 export const IndicesTable = () => {
   const { data: indices, isLoading } = useQuery({
     queryKey: ["indices"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("indices")
-        .select("*")
-        .order("date", { ascending: false });
-      
-      if (error) throw error;
-      return data;
+      // Simulate API delay
+      await new Promise((resolve) => setTimeout(resolve, 300));
+      return mockIndices;
     },
   });
 
   return (
     <Card className="p-6 shadow-lg border-border/50 bg-card/50 backdrop-blur">
-      <h3 className="text-xl font-bold mb-6 font-mono tracking-tight">Market Indices</h3>
+      <h3 className="text-xl font-bold mb-6 font-mono tracking-tight">
+        Market Indices
+      </h3>
       <p className="text-sm text-muted-foreground mb-4">
         Real-time pricing indices for key materials and commodities
       </p>
-      
+
       <Table>
         <TableHeader>
           <TableRow className="border-border/50">
-            <TableHead className="font-semibold text-muted-foreground">Index Name</TableHead>
-            <TableHead className="text-right font-semibold text-muted-foreground">Value</TableHead>
-            <TableHead className="text-right font-semibold text-muted-foreground">Unit</TableHead>
-            <TableHead className="text-right font-semibold text-muted-foreground">Price Factor</TableHead>
-            <TableHead className="text-right font-semibold text-muted-foreground">Date</TableHead>
+            <TableHead className="font-semibold text-muted-foreground">
+              Index Name
+            </TableHead>
+            <TableHead className="text-right font-semibold text-muted-foreground">
+              Value
+            </TableHead>
+            <TableHead className="text-right font-semibold text-muted-foreground">
+              Unit
+            </TableHead>
+            <TableHead className="text-right font-semibold text-muted-foreground">
+              Price Factor
+            </TableHead>
+            <TableHead className="text-right font-semibold text-muted-foreground">
+              Date
+            </TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {isLoading ? (
             <TableRow>
-              <TableCell colSpan={5} className="text-center text-muted-foreground">
+              <TableCell
+                colSpan={5}
+                className="text-center text-muted-foreground"
+              >
                 Loading indices...
               </TableCell>
             </TableRow>
           ) : indices && indices.length > 0 ? (
             indices.map((index) => (
               <TableRow key={index.id} className="border-border/50">
-                <TableCell className="font-medium font-mono">{index.name}</TableCell>
+                <TableCell className="font-medium font-mono">
+                  {index.name}
+                </TableCell>
                 <TableCell className="text-right font-mono text-primary font-semibold">
                   {parseFloat(String(index.value)).toFixed(2)}
                 </TableCell>
@@ -71,7 +84,10 @@ export const IndicesTable = () => {
             ))
           ) : (
             <TableRow>
-              <TableCell colSpan={5} className="text-center text-muted-foreground">
+              <TableCell
+                colSpan={5}
+                className="text-center text-muted-foreground"
+              >
                 No indices found
               </TableCell>
             </TableRow>

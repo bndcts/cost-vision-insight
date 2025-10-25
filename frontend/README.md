@@ -1,7 +1,7 @@
 this is the frontend of the app.
 
 use
-`npm i`
+`pnpm i`
 
 run with
-`npm run dev`
+`pnpm dev`

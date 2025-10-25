@@ -9,48 +9,57 @@ import {
 } from "@/components/ui/table";
 import { ExternalLink } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { mockArticles } from "@/lib/mockData";
 
 export const ArticlesTable = () => {
   const { data: articles, isLoading } = useQuery({
     queryKey: ["articles"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("articles")
-        .select("*")
-        .order("created_at", { ascending: false });
-      
-      if (error) throw error;
-      return data;
+      // Simulate API delay
+      await new Promise((resolve) => setTimeout(resolve, 300));
+      return mockArticles;
     },
   });
 
   return (
     <Card className="p-6 shadow-lg border-border/50 bg-card/50 backdrop-blur">
-      <h3 className="text-xl font-bold mb-6 font-mono tracking-tight">Articles Database</h3>
+      <h3 className="text-xl font-bold mb-6 font-mono tracking-tight">
+        Articles Database
+      </h3>
       <p className="text-sm text-muted-foreground mb-4">
         Registered articles with specifications and technical drawings
       </p>
-      
+
       <Table>
         <TableHeader>
           <TableRow className="border-border/50">
-            <TableHead className="font-semibold text-muted-foreground">Name</TableHead>
-            <TableHead className="font-semibold text-muted-foreground">Description</TableHead>
-            <TableHead className="text-right font-semibold text-muted-foreground">Drawing</TableHead>
+            <TableHead className="font-semibold text-muted-foreground">
+              Name
+            </TableHead>
+            <TableHead className="font-semibold text-muted-foreground">
+              Description
+            </TableHead>
+            <TableHead className="text-right font-semibold text-muted-foreground">
+              Drawing
+            </TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {isLoading ? (
             <TableRow>
-              <TableCell colSpan={3} className="text-center text-muted-foreground">
+              <TableCell
+                colSpan={3}
+                className="text-center text-muted-foreground"
+              >
                 Loading articles...
               </TableCell>
             </TableRow>
           ) : articles && articles.length > 0 ? (
             articles.map((article) => (
               <TableRow key={article.id} className="border-border/50">
-                <TableCell className="font-medium font-mono">{article.name}</TableCell>
+                <TableCell className="font-medium font-mono">
+                  {article.name}
+                </TableCell>
                 <TableCell className="text-sm text-muted-foreground max-w-md">
                   {article.description}
                 </TableCell>
@@ -73,7 +82,10 @@ export const ArticlesTable = () => {
             ))
           ) : (
             <TableRow>
-              <TableCell colSpan={3} className="text-center text-muted-foreground">
+              <TableCell
+                colSpan={3}
+                className="text-center text-muted-foreground"
+              >
                 No articles found
               </TableCell>
             </TableRow>

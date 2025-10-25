@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 
-from sqlalchemy import DateTime, Numeric, String
+from sqlalchemy import DateTime, LargeBinary, Numeric, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from typing import TYPE_CHECKING, Optional
 
@@ -19,6 +19,11 @@ class Article(Base):
     article_name: Mapped[str] = mapped_column(String(255), nullable=False, unique=True)
     description: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     unit_weight: Mapped[Optional[float]] = mapped_column(Numeric(18, 6), nullable=True)
+    product_specification_file: Mapped[Optional[bytes]] = mapped_column(LargeBinary, nullable=True)
+    product_specification_filename: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    drawing_file: Mapped[Optional[bytes]] = mapped_column(LargeBinary, nullable=True)
+    drawing_filename: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    comment: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,

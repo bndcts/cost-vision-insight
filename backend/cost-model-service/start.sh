@@ -73,4 +73,10 @@ fi
 
 # Start the application
 echo "Starting uvicorn server..."
-exec uvicorn app.main:app --host 0.0.0.0 --port 8000
+if [ "$CMS_ENV" = "development" ]; then
+    echo "Running in development mode with hot-reload enabled"
+    exec uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+else
+    echo "Running in production mode"
+    exec uvicorn app.main:app --host 0.0.0.0 --port 8000
+fi

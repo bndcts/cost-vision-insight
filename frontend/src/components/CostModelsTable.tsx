@@ -8,47 +8,52 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
+import { mockCostModels } from "@/lib/mockData";
 
 export const CostModelsTable = () => {
   const { data: costModels, isLoading } = useQuery({
     queryKey: ["cost-models"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("cost_models")
-        .select(`
-          *,
-          articles (name),
-          indices (name, unit)
-        `)
-        .order("created_at", { ascending: false });
-      
-      if (error) throw error;
-      return data;
+      // Simulate API delay
+      await new Promise((resolve) => setTimeout(resolve, 300));
+      return mockCostModels;
     },
   });
 
   return (
     <Card className="p-6 shadow-lg border-border/50 bg-card/50 backdrop-blur">
-      <h3 className="text-xl font-bold mb-6 font-mono tracking-tight">Cost Model Configurations</h3>
+      <h3 className="text-xl font-bold mb-6 font-mono tracking-tight">
+        Cost Model Configurations
+      </h3>
       <p className="text-sm text-muted-foreground mb-4">
         Index contribution factors for each article's cost calculation
       </p>
-      
+
       <Table>
         <TableHeader>
           <TableRow className="border-border/50">
-            <TableHead className="font-semibold text-muted-foreground">Article</TableHead>
-            <TableHead className="font-semibold text-muted-foreground">Index</TableHead>
-            <TableHead className="text-right font-semibold text-muted-foreground">Factor</TableHead>
-            <TableHead className="text-right font-semibold text-muted-foreground">Contribution</TableHead>
+            <TableHead className="font-semibold text-muted-foreground">
+              Article
+            </TableHead>
+            <TableHead className="font-semibold text-muted-foreground">
+              Index
+            </TableHead>
+            <TableHead className="text-right font-semibold text-muted-foreground">
+              Factor
+            </TableHead>
+            <TableHead className="text-right font-semibold text-muted-foreground">
+              Contribution
+            </TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {isLoading ? (
             <TableRow>
-              <TableCell colSpan={4} className="text-center text-muted-foreground">
+              <TableCell
+                colSpan={4}
+                className="text-center text-muted-foreground"
+              >
                 Loading cost models...
               </TableCell>
             </TableRow>
@@ -78,7 +83,10 @@ export const CostModelsTable = () => {
             ))
           ) : (
             <TableRow>
-              <TableCell colSpan={4} className="text-center text-muted-foreground">
+              <TableCell
+                colSpan={4}
+                className="text-center text-muted-foreground"
+              >
                 No cost models found
               </TableCell>
             </TableRow>
