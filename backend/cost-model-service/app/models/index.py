@@ -18,7 +18,7 @@ class Index(Base):
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     value: Mapped[float] = mapped_column(Numeric(18, 6), nullable=False)
-    value_per_gram: Mapped[float] = mapped_column(Numeric(18, 6), nullable=False)
+    value_per_gram: Mapped[float | None] = mapped_column(Numeric(18, 6), nullable=True)
     date: Mapped[datetime] = mapped_column(Date, nullable=False)
     price_factor: Mapped[float] = mapped_column(Numeric(18, 6), nullable=False)
     unit: Mapped[str] = mapped_column(String(64), nullable=False)

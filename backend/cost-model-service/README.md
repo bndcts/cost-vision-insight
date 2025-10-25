@@ -44,20 +44,20 @@ CMS_OPENAI_MODEL=gpt-4o-mini
 alembic upgrade head
 ```
 
-### Load TAC Index Data
+### TAC Index Data
+
+- Place `indices.csv` in `backend/indices.csv` (already git-ignored).  
+- `docker-compose.yml` mounts the CSV into the backend container at `/app/data/indices.csv` and `start.sh` automatically runs `python -m app.scripts.load_indices_from_csv --file /app/data/indices.csv` on every container startup, so the indices table is refreshed without manual steps.
+- Supported mass units (`t`, `kg`, `g`) are converted to a normalized `value_per_gram`. Other units (e.g., `MWh`, `h`) are stored as-is with `value_per_gram = null`.
+
+Manual reload command (if you change the CSV while the container is running):
 
 ```bash
-# Example: mount your Downloads folder and load the workbook
 docker-compose run --rm \
-  -v /Users/markoprohaska/Downloads:/data \
+  --entrypoint python \
   cost-model-service \
-  python -m app.scripts.load_indices_from_excel --file /data/20250730_TAC_Index_data_cbl.xlsx
+  -m app.scripts.load_indices_from_csv --file /app/data/indices.csv
 ```
-
-- The loader skips the first sheet (summary) and treats each following sheet as an index (Zucker, Kaffee, Kakao, …).
-- Each sheet must contain a `Datum` column (`DD.MM.YYYY`) and a TAC price column (e.g. `TAC - Zucker [€/t] (finanzen.net)`).
-- Prices are stored both as captured values (`value`) and as gram-normalized values (`value_per_gram`). Units such as `kg`/`t` are automatically converted.
-- Re-running the script updates existing rows (uniqueness is enforced on `(name, date)`).
 
 ### Run Development Server
 

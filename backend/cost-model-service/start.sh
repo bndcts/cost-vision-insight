@@ -59,6 +59,18 @@ fi
 
 echo "Database migrations completed successfully"
 
+INDEX_CSV_PATH="${CMS_INDEX_CSV_PATH:-/app/data/indices.csv}"
+if [ -f "$INDEX_CSV_PATH" ]; then
+    echo "Loading index data from $INDEX_CSV_PATH..."
+    if ! python -m app.scripts.load_indices_from_csv --file "$INDEX_CSV_PATH"; then
+        echo "Error: Failed to load index data"
+        exit 1
+    fi
+else
+    echo "Error: Index CSV not found at $INDEX_CSV_PATH"
+    exit 1
+fi
+
 # Start the application
 echo "Starting uvicorn server..."
 exec uvicorn app.main:app --host 0.0.0.0 --port 8000

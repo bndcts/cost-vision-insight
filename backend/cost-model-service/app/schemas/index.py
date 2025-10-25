@@ -8,10 +8,10 @@ from pydantic import BaseModel, ConfigDict
 class IndexBase(BaseModel):
     name: str
     value: Decimal
-    value_per_gram: Decimal
     date: date
     price_factor: Decimal
     unit: str
+    value_per_gram: Decimal | None = None
 
 
 class IndexCreate(IndexBase):
