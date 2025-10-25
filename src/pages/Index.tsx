@@ -4,6 +4,8 @@ import { LoadingOverlay } from "@/components/LoadingOverlay";
 import { CostBreakdown } from "@/components/CostBreakdown";
 import { PriceTrendChart } from "@/components/PriceTrendChart";
 import { IndicesTable } from "@/components/IndicesTable";
+import { ArticlesTable } from "@/components/ArticlesTable";
+import { CostModelsTable } from "@/components/CostModelsTable";
 import { SimilarArticles } from "@/components/SimilarArticles";
 import { Model3DViewer } from "@/components/Model3DViewer";
 import { BarChart3 } from "lucide-react";
@@ -42,14 +44,6 @@ const Index = () => {
     { month: "Jun", articlePrice: 115, steelIndex: 120, laborIndex: 106, energyIndex: 108 },
   ];
 
-  const mockIndices = [
-    { name: "Steel Price Index", currentValue: 120.45, change: 2.15, changePercent: 1.82 },
-    { name: "Aluminum Index", currentValue: 98.32, change: -1.23, changePercent: -1.24 },
-    { name: "Labor Cost Index", currentValue: 106.78, change: 0.45, changePercent: 0.42 },
-    { name: "Energy Price Index", currentValue: 108.90, change: -2.34, changePercent: -2.10 },
-    { name: "Manufacturing PMI", currentValue: 52.15, change: 1.05, changePercent: 2.05 },
-  ];
-
   const mockSimilarArticles = [
     {
       id: "1",
@@ -79,19 +73,14 @@ const Index = () => {
       {isAnalyzing && <LoadingOverlay onComplete={handleAnalysisComplete} />}
       
       {/* Header */}
-      <header className="border-b bg-card shadow-sm">
+      <header className="border-b border-border/50 bg-card/30 backdrop-blur-sm">
         <div className="container mx-auto px-4 py-6">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-primary/10 rounded-lg">
-              <BarChart3 className="h-8 w-8 text-primary" />
-            </div>
-            <div>
-              <h1 className="text-3xl font-bold">Should Cost Analysis Tool</h1>
-              <p className="text-muted-foreground">
-                AI-powered cost modeling and price intelligence platform
-              </p>
-            </div>
-          </div>
+          <h1 className="text-4xl font-bold tracking-tight font-mono">
+            SHOULD COST ANALYSIS
+          </h1>
+          <p className="text-muted-foreground mt-2 font-mono text-sm">
+            AI-POWERED COST ESTIMATION AND MARKET INTELLIGENCE
+          </p>
         </div>
       </header>
 
@@ -129,8 +118,12 @@ const Index = () => {
               {/* Price Trend Chart */}
               <PriceTrendChart data={mockPriceTrend} />
 
-              {/* Indices Table */}
-              <IndicesTable indices={mockIndices} />
+              {/* Database Tables */}
+              <div className="space-y-6">
+                <IndicesTable />
+                <ArticlesTable />
+                <CostModelsTable />
+              </div>
 
               {/* Similar Articles */}
               <SimilarArticles articles={mockSimilarArticles} />
