@@ -52,6 +52,7 @@ pgdata/
 
 # Docker
 docker-compose.override.yml
+backend/indices.csv
 
 # Logs
 *.log
@@ -86,4 +87,3 @@ node_modules/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
-
