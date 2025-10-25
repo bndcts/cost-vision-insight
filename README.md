@@ -45,28 +45,25 @@ docker-compose up -d --build frontend
 
 ```bash
 # Backend in Docker
-docker-compose up -d cost-model-db cost-model-service
+docker-compose up -d cost-model-service
 
 # Frontend local (instant hot-reload)
 cd frontend
-npm install
-npm run dev
+pnpm dev
 ```
 
 ### Backend Development (Recommended)
 
 ```bash
-# Database in Docker
-docker-compose up -d cost-model-db
+# Run backend with database
+docker-compose up cost-model-service
 
-# Backend local (auto-reload)
-cd backend/cost-model-service
-uv pip install -r requirements.txt
-export CMS_DATABASE_URL="postgresql+asyncpg://postgres:postgres@localhost:5432/cost_model"
-uvicorn app.main:app --reload
+# When there's a new migration:
+docker-compose down -v
+docker-compose up cost-model-service --build
 ```
 
-### Full Local (Best for Active Development)
+### Full Local (Alternative)
 
 ```bash
 # Terminal 1: Database
@@ -74,11 +71,13 @@ docker-compose up cost-model-db
 
 # Terminal 2: Backend
 cd backend/cost-model-service
+uv pip install -r requirements.txt
+export CMS_DATABASE_URL="postgresql+asyncpg://postgres:postgres@localhost:5432/cost_model"
 uvicorn app.main:app --reload
 
 # Terminal 3: Frontend
 cd frontend
-npm run dev
+pnpm dev
 ```
 
 ## Common Commands
@@ -98,8 +97,8 @@ uvicorn app.main:app --reload               # Run with hot-reload
 
 # Frontend
 cd frontend
-npm run dev                                 # Development server
-npm run build                               # Production build
+pnpm dev                                    # Development server
+pnpm build                                  # Production build
 
 # Database
 docker-compose exec cost-model-db psql -U postgres -d cost_model
