@@ -22,4 +22,3 @@ build-backend = "hatchling.build"
 
 [tool.uv]
 dev-dependencies = []
-

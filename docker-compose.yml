@@ -23,11 +23,14 @@ services:
       CMS_DATABASE_URL: postgresql+asyncpg://postgres:postgres@cost-model-db:5432/cost_model
       CMS_OPENAI_API_KEY: ${CMS_OPENAI_API_KEY:-}
       CMS_OPENAI_MODEL: ${CMS_OPENAI_MODEL:-gpt-4o-mini}
+      CMS_INDEX_CSV_PATH: ${CMS_INDEX_CSV_PATH:-/app/data/indices.csv}
     depends_on:
       cost-model-db:
         condition: service_healthy
     ports:
       - "8000:8000"
+    volumes:
+      - ./backend/indices.csv:/app/data/indices.csv:ro
     restart: unless-stopped
 
   frontend:

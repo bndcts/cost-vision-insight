@@ -11,6 +11,7 @@ class IndexBase(BaseModel):
     date: date
     price_factor: Decimal
     unit: str
+    value_per_gram: Decimal | None = None
 
 
 class IndexCreate(IndexBase):
@@ -19,6 +20,7 @@ class IndexCreate(IndexBase):
 
 class IndexUpdate(BaseModel):
     value: Optional[Decimal] = None
+    value_per_gram: Optional[Decimal] = None
     date: Optional[date] = None
     price_factor: Optional[Decimal] = None
     unit: Optional[str] = None
