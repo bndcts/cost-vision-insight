@@ -30,21 +30,22 @@ export const LoadingOverlay = ({
 
   useEffect(() => {
     const startTime = Date.now();
-    let currentProgress = 0;
+    const EXPECTED_DURATION_MS = 60000; // 60 seconds expected
+    let completed = false;
 
-    // Update elapsed time every second
+    // Update elapsed time and progress based on expected duration
     const timeInterval = setInterval(() => {
-      setElapsedTime(Math.floor((Date.now() - startTime) / 1000));
-    }, 1000);
+      const elapsed = Date.now() - startTime;
+      const elapsedSeconds = Math.floor(elapsed / 1000);
+      setElapsedTime(elapsedSeconds);
 
-    // Simulate progress animation (this is just visual feedback)
-    const progressInterval = setInterval(() => {
-      // Progress slows down as it approaches 90% (we never reach 100% until backend confirms)
-      if (currentProgress < 90) {
-        const increment =
-          currentProgress < 50 ? 2 : currentProgress < 70 ? 1 : 0.5;
-        currentProgress = Math.min(90, currentProgress + increment);
-        setProgress(currentProgress);
+      if (!completed) {
+        // Progress fills up smoothly over 60 seconds, caps at 95% until completion
+        const timeBasedProgress = Math.min(
+          95,
+          (elapsed / EXPECTED_DURATION_MS) * 100
+        );
+        setProgress(timeBasedProgress);
       }
     }, 500);
 
@@ -64,26 +65,29 @@ export const LoadingOverlay = ({
 
         // Update stage based on status
         if (status.processing_status === "processing") {
-          // Alternate between different processing messages
+          const elapsed = Date.now() - startTime;
+          const currentSeconds = Math.floor(elapsed / 1000);
           const messages = [
-            "Extracting product weight from specification...",
-            "Analyzing file content with AI...",
+            "Uploading file to OpenAI...",
+            "Analyzing material composition...",
+            "Extracting product weight...",
+            "Identifying cost indices...",
             "Finalizing analysis...",
           ];
-          const messageIndex = Math.floor(elapsedTime / 3) % messages.length;
+          const messageIndex =
+            Math.floor(currentSeconds / 10) % messages.length;
           setStage(messages[messageIndex]);
         }
 
         if (status.processing_status === "completed") {
+          completed = true;
           clearInterval(pollInterval);
-          clearInterval(progressInterval);
           clearInterval(timeInterval);
           setProgress(100);
           setStage("Analysis complete!");
           setTimeout(() => onComplete(), 500);
         } else if (status.processing_status === "failed") {
           clearInterval(pollInterval);
-          clearInterval(progressInterval);
           clearInterval(timeInterval);
           const errorMessage =
             status.processing_error || "Unknown error occurred";
@@ -91,21 +95,17 @@ export const LoadingOverlay = ({
         }
       } catch (error) {
         console.error("Error polling status:", error);
-        // Continue polling on network errors, but log them
       }
     };
 
-    // Poll immediately, then every 2 seconds
     pollStatus();
     const pollInterval = setInterval(pollStatus, 2000);
 
-    // Cleanup on unmount
     return () => {
       clearInterval(pollInterval);
-      clearInterval(progressInterval);
       clearInterval(timeInterval);
     };
-  }, [articleId, onComplete, onError, elapsedTime]);
+  }, [articleId, onComplete, onError]);
 
   return (
     <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center">
@@ -139,7 +139,10 @@ export const LoadingOverlay = ({
 
         <div className="text-center">
           <p className="text-xs text-muted-foreground">
-            Calling OpenAI API to analyze your product specification...
+            Analyzing your product specification with AI...
+          </p>
+          <p className="text-xs text-muted-foreground mt-1">
+            This typically takes about 1 minute
           </p>
         </div>
       </Card>
