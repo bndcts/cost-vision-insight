@@ -205,7 +205,6 @@ def generate_cost_models(
                 {"role": "system", "content": "You are a cost modeling expert. You analyze products and determine cost structure breakdowns."},
                 {"role": "user", "content": prompt},
             ],
-            temperature=0.3,
         )
 
         if not response.choices:

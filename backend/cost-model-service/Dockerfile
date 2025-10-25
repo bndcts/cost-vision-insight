@@ -18,7 +18,6 @@ COPY alembic ./alembic
 COPY alembic.ini ./alembic.ini
 COPY app ./app
 COPY start.sh ./start.sh
-COPY .env ./.env
 
 RUN chmod +x /app/start.sh
 

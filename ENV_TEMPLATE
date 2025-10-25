@@ -1,0 +1,20 @@
+# ==============================================================================
+# ENVIRONMENT CONFIGURATION FOR DOCKER COMPOSE
+# ==============================================================================
+# 
+# Copy this file to .env in the same directory (project root)
+# Command: cp ENV_TEMPLATE .env
+#
+# Then edit .env and add your OpenAI API key
+# ==============================================================================
+
+# OpenAI Configuration (REQUIRED)
+# Get your API key from: https://platform.openai.com/api-keys
+CMS_OPENAI_API_KEY=sk-proj-xxxxxxxxxxxxxxxxxxxxx
+
+# OpenAI Model (Optional - defaults to gpt-4o-mini)
+CMS_OPENAI_MODEL=gpt-4o-mini
+
+# Index CSV Path (Optional - defaults to /app/data/indices.csv)
+# CMS_INDEX_CSV_PATH=/app/data/indices.csv
+

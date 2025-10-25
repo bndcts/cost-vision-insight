@@ -56,6 +56,7 @@ docker-compose.override.yml
 *.log
 logs/
 
+.env
 # Testing
 .pytest_cache/
 .coverage
