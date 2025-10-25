@@ -3,6 +3,7 @@ import { ArticleInput, ArticleData } from "@/components/ArticleInput";
 import { LoadingOverlay } from "@/components/LoadingOverlay";
 import { CostBreakdown } from "@/components/CostBreakdown";
 import { PriceTrendChart } from "@/components/PriceTrendChart";
+import { MaterialCompositionChart } from "@/components/MaterialCompositionChart";
 import { IndicesTable } from "@/components/IndicesTable";
 import { ArticlesTable } from "@/components/ArticlesTable";
 import { CostModelsTable } from "@/components/CostModelsTable";
@@ -378,6 +379,11 @@ const Index = () => {
                 <CostBreakdown data={mockCostData} totalCost={mockTotalCost} />
                 <Model3DViewer />
               </div>
+
+              {/* Material Composition Spider Chart */}
+              <MaterialCompositionChart
+                articleId={createdArticleResponse?.id || null}
+              />
 
               {/* Price Trend Chart */}
               <PriceTrendChart articleId={createdArticleResponse?.id || null} />
