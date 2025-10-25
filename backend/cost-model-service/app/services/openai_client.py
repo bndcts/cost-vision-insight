@@ -128,7 +128,7 @@ def analyze_product_specification(
         # Step 2: Call OpenAI with structured output parsing
         logger.info("Calling OpenAI for product analysis with structured output")
         completion = client.chat.completions.parse(
-            model=model or settings.openai_model,
+            model='gpt-4o',
             response_format=ProductAnalysisResponse,
             messages=[
                 {
