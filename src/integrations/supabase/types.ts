@@ -14,7 +14,99 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      articles: {
+        Row: {
+          created_at: string
+          description: string | null
+          drawing_url: string | null
+          id: string
+          name: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          drawing_url?: string | null
+          id?: string
+          name: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          drawing_url?: string | null
+          id?: string
+          name?: string
+        }
+        Relationships: []
+      }
+      cost_models: {
+        Row: {
+          article_id: string
+          created_at: string
+          factor: number
+          id: string
+          index_id: string
+        }
+        Insert: {
+          article_id: string
+          created_at?: string
+          factor: number
+          id?: string
+          index_id: string
+        }
+        Update: {
+          article_id?: string
+          created_at?: string
+          factor?: number
+          id?: string
+          index_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cost_models_article_id_fkey"
+            columns: ["article_id"]
+            isOneToOne: false
+            referencedRelation: "articles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cost_models_index_id_fkey"
+            columns: ["index_id"]
+            isOneToOne: false
+            referencedRelation: "indices"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      indices: {
+        Row: {
+          created_at: string
+          date: string
+          id: string
+          name: string
+          price_factor: number
+          unit: string
+          value: number
+        }
+        Insert: {
+          created_at?: string
+          date?: string
+          id?: string
+          name: string
+          price_factor: number
+          unit: string
+          value: number
+        }
+        Update: {
+          created_at?: string
+          date?: string
+          id?: string
+          name?: string
+          price_factor?: number
+          unit?: string
+          value?: number
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
