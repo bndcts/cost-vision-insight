@@ -10,11 +10,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.article import Article
 from app.models.cost_model import CostModel
-from app.services.cost_model_builder import build_cost_model_parts
-from app.services.openai_client import (
-    extract_material_breakdown,
-    extract_metadata_from_file,
-)
+from app.models.index import Index
+from app.services.openai_client import analyze_product_specification
 
 logger = logging.getLogger(__name__)
 
@@ -22,9 +19,10 @@ logger = logging.getLogger(__name__)
 async def process_article_async(article_id: int, db: AsyncSession) -> None:
     """
     Background task to process an article:
-    1. Extract unit weight from the product specification file
-    2. Update article with extracted unit weight
-    3. Generate cost model parts based on material breakdown
+    1. Analyze product specification file using OpenAI
+    2. Extract unit weight and material composition
+    3. Update article with extracted data
+    4. Generate and store cost model parts
     """
     logger.info(f"Starting background processing for article {article_id}")
 
@@ -45,80 +43,95 @@ async def process_article_async(article_id: int, db: AsyncSession) -> None:
         spec_bytes = article.product_specification_file
         spec_filename = article.product_specification_filename
 
-        # Step 1: Extract weight from product specification file
-        logger.info(f"Extracting weight for article {article_id}")
-        weight_data: dict[str, float | None] = {}
+        if not spec_bytes or not spec_filename:
+            logger.warning(f"Article {article_id} has no product specification file")
+            article.processing_status = "failed"
+            article.processing_error = "No product specification file provided"
+            article.processing_completed_at = datetime.now(timezone.utc)
+            await db.commit()
+            return
 
-        if spec_bytes and spec_filename:
-            try:
-                weight_data = extract_metadata_from_file(
-                    file_content=spec_bytes, filename=spec_filename
-                )
-                logger.info(f"Extracted weight data: {weight_data}")
-            except Exception as exc:  # pragma: no cover - defensive
-                logger.error(f"Error extracting weight: {exc}", exc_info=True)
-                # Continue processing even if weight extraction fails
+        # Analyze the product specification using OpenAI structured outputs
+        logger.info(f"Analyzing product specification for article {article_id}")
+        try:
+            analysis = analyze_product_specification(
+                file_content=spec_bytes,
+                filename=spec_filename,
+            )
+        except Exception as exc:
+            logger.error(f"Error analyzing product specification: {exc}", exc_info=True)
+            article.processing_status = "failed"
+            article.processing_error = str(exc)
+            article.processing_completed_at = datetime.now(timezone.utc)
+            await db.commit()
+            return
 
-        # Step 2: Update article with extracted weight (convert grams to kg for storage)
-        if weight_data.get("unit_weight_grams") is not None:
-            weight_grams = float(weight_data["unit_weight_grams"])
-            # Store as kilograms in the database
-            article.unit_weight = weight_grams / 1000.0
+        # Update article with extracted weight (convert grams to kg for storage)
+        if analysis.total_weight_grams and analysis.total_weight_grams > 0:
+            article.unit_weight = analysis.total_weight_grams / 1000.0
             logger.info(
                 "Updated article %s with unit_weight: %.6f kg (%.2f g)",
                 article_id,
                 article.unit_weight,
-                weight_grams,
+                analysis.total_weight_grams,
             )
         await db.commit()
-        await db.refresh(article)
 
-        # Step 3: Generate cost models from material composition
-        cost_model_parts = []
-        if spec_bytes and spec_filename:
-            try:
-                materials = extract_material_breakdown(
-                    file_content=spec_bytes,
-                    filename=spec_filename,
-                )
-                cost_model_parts = await build_cost_model_parts(materials, db)
-            except Exception as exc:  # pragma: no cover - defensive
-                logger.error(f"Error generating cost models: {exc}", exc_info=True)
+        # Create cost models from the analyzed materials
+        if analysis.indices:
+            # Get all indices from database by name for mapping
+            indices_stmt = select(Index).order_by(Index.name.asc(), Index.date.desc())
+            indices_result = await db.execute(indices_stmt)
+            indices_by_name: dict[str, Index] = {}
+            for idx in indices_result.scalars():
+                if idx.name not in indices_by_name:
+                    indices_by_name[idx.name] = idx
 
-        unit_weight_kg = float(article.unit_weight) if article.unit_weight is not None else None
-        total_weight_grams = unit_weight_kg * 1000.0 if unit_weight_kg is not None else None
+            # Remove existing cost models for the article
+            await db.execute(delete(CostModel).where(CostModel.article_id == article_id))
 
-        if cost_model_parts:
-            if total_weight_grams and total_weight_grams > 0:
-                # Remove existing cost models for the article
-                await db.execute(delete(CostModel).where(CostModel.article_id == article_id))
-                for part in cost_model_parts:
-                    grams = part.fraction * total_weight_grams
-                    db.add(
-                        CostModel(
-                            article_id=article_id,
-                            index_id=part.index_id,
-                            part=round(grams, 4),
-                        )
+            # Create new cost models
+            created_count = 0
+            for material_index in analysis.indices:
+                # Map the IndexName enum value to database index
+                index_name = material_index.index_name.value
+                db_index = indices_by_name.get(index_name)
+                
+                if not db_index:
+                    logger.warning(
+                        f"Index '{index_name}' not found in database, skipping"
                     )
-                await db.commit()
+                    continue
+                
+                if material_index.quantity_grams <= 0:
+                    logger.warning(
+                        f"Invalid quantity {material_index.quantity_grams}g for {index_name}, skipping"
+                    )
+                    continue
+
+                db.add(
+                    CostModel(
+                        article_id=article_id,
+                        index_id=db_index.id,
+                        part=round(material_index.quantity_grams, 4),
+                    )
+                )
+                created_count += 1
                 logger.info(
-                    "Stored %d cost model parts for article %s",
-                    len(cost_model_parts),
-                    article_id,
+                    f"  Added cost model: {index_name} = {material_index.quantity_grams:.2f}g"
                 )
-                logger.info(
-                    "Total grams represented for article %s: %.4f",
-                    article_id,
-                    sum(p.fraction for p in cost_model_parts) * total_weight_grams,
-                )
-            else:
-                logger.warning(
-                    "Skipping cost model persistence for article %s due to missing unit weight",
-                    article_id,
-                )
+
+            await db.commit()
+            logger.info(
+                f"Stored {created_count} cost model parts for article {article_id}"
+            )
+            
+            total_grams = sum(m.quantity_grams for m in analysis.indices)
+            logger.info(
+                f"Total material weight for article {article_id}: {total_grams:.2f}g"
+            )
         else:
-            logger.info("No cost model parts generated for article %s", article_id)
+            logger.info(f"No materials extracted for article {article_id}")
 
         # Mark processing as completed
         article.processing_status = "completed"
