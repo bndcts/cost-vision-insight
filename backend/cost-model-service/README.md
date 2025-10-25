@@ -44,6 +44,21 @@ CMS_OPENAI_MODEL=gpt-4o-mini
 alembic upgrade head
 ```
 
+### Load TAC Index Data
+
+```bash
+# Example: mount your Downloads folder and load the workbook
+docker-compose run --rm \
+  -v /Users/markoprohaska/Downloads:/data \
+  cost-model-service \
+  python -m app.scripts.load_indices_from_excel --file /data/20250730_TAC_Index_data_cbl.xlsx
+```
+
+- The loader skips the first sheet (summary) and treats each following sheet as an index (Zucker, Kaffee, Kakao, …).
+- Each sheet must contain a `Datum` column (`DD.MM.YYYY`) and a TAC price column (e.g. `TAC - Zucker [€/t] (finanzen.net)`).
+- Prices are stored both as captured values (`value`) and as gram-normalized values (`value_per_gram`). Units such as `kg`/`t` are automatically converted.
+- Re-running the script updates existing rows (uniqueness is enforced on `(name, date)`).
+
 ### Run Development Server
 
 ```bash
