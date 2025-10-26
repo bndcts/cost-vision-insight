@@ -41,6 +41,7 @@ class ArticleRead(ArticleBase):
     processing_error: Optional[str] = None
     processing_started_at: Optional[datetime] = None
     processing_completed_at: Optional[datetime] = None
+    similar_articles: Optional[list[int]] = None
     created_at: datetime
     # Note: file data (bytes) is excluded from read responses for performance
     # Use a separate endpoint to download the actual files

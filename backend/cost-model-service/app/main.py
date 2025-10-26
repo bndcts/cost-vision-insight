@@ -1,4 +1,5 @@
 from contextlib import asynccontextmanager
+import logging
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -6,6 +7,16 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api.routes import api_router
 from app.core.config import get_settings
 from app.db.session import engine
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(levelname)s:     %(name)s - %(message)s',
+)
+
+# Set specific loggers to INFO to see background task logs
+logging.getLogger("app.services.article_processor").setLevel(logging.INFO)
+logging.getLogger("app.services.weaviate_service").setLevel(logging.INFO)
 
 
 @asynccontextmanager

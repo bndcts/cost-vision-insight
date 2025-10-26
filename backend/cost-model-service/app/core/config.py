@@ -12,9 +12,15 @@ class Settings(BaseSettings):
         default="postgresql+asyncpg://postgres:postgres@db:5432/cost_model"
     )
     openai_api_key: str | None = None
-    openai_model: str = Field(default="gpt-4o-mini")
+    openai_model: str = Field(default="gpt-4o")
     index_csv_path: str = Field(default="/app/data/indices.csv")
     env: str = Field(default="development")
+    
+    # Weaviate Configuration
+    weaviate_url: str | None = None
+    weaviate_api_key: str | None = None
+    weaviate_similarity_threshold: float = Field(default=0.9)
+    weaviate_top_k: int = Field(default=2)
 
     class Config:
         # Don't require .env file - read from environment variables passed by Docker

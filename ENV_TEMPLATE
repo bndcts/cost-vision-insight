@@ -15,6 +15,13 @@ CMS_OPENAI_API_KEY=sk-proj-xxxxxxxxxxxxxxxxxxxxx
 # OpenAI Model (Optional - defaults to gpt-4o-mini)
 CMS_OPENAI_MODEL=gpt-4o-mini
 
+# Weaviate Configuration (Optional - for RAG/Similar Articles)
+# Get your cluster URL and API key from: https://console.weaviate.cloud/
+CMS_WEAVIATE_URL=https://your-cluster.weaviate.network
+CMS_WEAVIATE_API_KEY=your-weaviate-api-key
+CMS_WEAVIATE_SIMILARITY_THRESHOLD=0.9
+CMS_WEAVIATE_TOP_K=2
+
 # Index CSV Path (Optional - defaults to /app/data/indices.csv)
 # CMS_INDEX_CSV_PATH=/app/data/indices.csv
 

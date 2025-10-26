@@ -1,6 +1,7 @@
 """
 Background processing service for articles.
 Handles async OpenAI API calls for metadata extraction and cost model generation.
+Also integrates with Weaviate for similar article search via RAG.
 """
 import logging
 from datetime import datetime, timezone
@@ -12,6 +13,7 @@ from app.models.article import Article
 from app.models.cost_model import CostModel
 from app.models.index import Index
 from app.services.openai_client import analyze_product_specification
+from app.services.weaviate_service import get_weaviate_service
 
 logger = logging.getLogger(__name__)
 
@@ -51,12 +53,83 @@ async def process_article_async(article_id: int, db: AsyncSession) -> None:
             await db.commit()
             return
 
-        # Analyze the product specification using OpenAI structured outputs
+        # Step 1: Ingest into Weaviate first to find similar products
+        similar_article_ids = []
+        similar_products_context = None
+        
+        try:
+            weaviate_service = get_weaviate_service()
+            
+            # Ingest the document into Weaviate
+            logger.info(f"Ingesting document for article {article_id} into Weaviate")
+            ingested = weaviate_service.ingest_document(
+                article_id=article_id,
+                article_name=article.article_name,
+                file_content=spec_bytes,
+                filename=spec_filename,
+            )
+            
+            if ingested:
+                # Find similar articles
+                logger.info(f"Finding similar articles for article {article_id}")
+                similar_article_ids = weaviate_service.find_similar_articles(article_id)
+                
+                if similar_article_ids:
+                    logger.info(
+                        f"Found {len(similar_article_ids)} similar articles: {similar_article_ids}"
+                    )
+                    
+                    # Fetch cost models of similar articles to use as context
+                    similar_articles = await db.execute(
+                        select(Article).where(Article.id.in_(similar_article_ids))
+                    )
+                    similar_context_parts = []
+                    
+                    for similar_article in similar_articles.scalars():
+                        # Get cost models for this similar article
+                        cost_models_result = await db.execute(
+                            select(CostModel, Index)
+                            .join(Index, CostModel.index_id == Index.id)
+                            .where(CostModel.article_id == similar_article.id)
+                        )
+                        cost_models = cost_models_result.all()
+                        
+                        if cost_models:
+                            context_part = f"Similar Product: {similar_article.article_name}"
+                            if similar_article.unit_weight:
+                                context_part += f" (Total weight: {similar_article.unit_weight * 1000:.2f}g)"
+                            context_part += "\nMaterial composition:"
+                            
+                            for cost_model, index in cost_models:
+                                context_part += f"\n  - {index.name}: {cost_model.part:.2f}g"
+                            
+                            similar_context_parts.append(context_part)
+                    
+                    if similar_context_parts:
+                        similar_products_context = "\n\n".join(similar_context_parts)
+                        logger.info(f"Prepared context from {len(similar_context_parts)} similar products")
+                else:
+                    logger.info(f"No similar articles found for article {article_id}")
+            else:
+                logger.warning(f"Failed to ingest document for article {article_id} into Weaviate")
+                
+        except Exception as weaviate_error:
+            # Don't fail the entire processing if Weaviate fails
+            logger.warning(
+                f"Weaviate integration failed for article {article_id}: {weaviate_error}",
+                exc_info=True
+            )
+
+        # Step 2: Analyze the product specification using OpenAI with similar products context
         logger.info(f"Analyzing product specification for article {article_id}")
+        if similar_products_context:
+            logger.info("Using similar products as context for analysis")
+        
         try:
             analysis = analyze_product_specification(
                 file_content=spec_bytes,
                 filename=spec_filename,
+                similar_products_context=similar_products_context,
             )
         except Exception as exc:
             logger.error(f"Error analyzing product specification: {exc}", exc_info=True)
@@ -132,6 +205,13 @@ async def process_article_async(article_id: int, db: AsyncSession) -> None:
             )
         else:
             logger.info(f"No materials extracted for article {article_id}")
+
+        # Store similar articles if we found any
+        if similar_article_ids:
+            article.similar_articles = similar_article_ids
+            logger.info(
+                f"Stored {len(similar_article_ids)} similar articles for article {article_id}"
+            )
 
         # Mark processing as completed
         article.processing_status = "completed"

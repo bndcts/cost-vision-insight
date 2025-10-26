@@ -1,6 +1,8 @@
 from datetime import datetime, timezone
 
+import sqlalchemy as sa
 from sqlalchemy import DateTime, LargeBinary, Numeric, String, Text
+from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from typing import TYPE_CHECKING, Optional
 
@@ -39,6 +41,12 @@ class Article(Base):
     )
     processing_completed_at: Mapped[Optional[datetime]] = mapped_column(
         DateTime(timezone=True),
+        nullable=True,
+    )
+    
+    # Similar articles found via Weaviate vector search
+    similar_articles: Mapped[Optional[list[int]]] = mapped_column(
+        ARRAY(sa.Integer),
         nullable=True,
     )
     

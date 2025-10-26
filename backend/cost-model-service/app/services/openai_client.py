@@ -3,7 +3,6 @@ from __future__ import annotations
 import logging
 from enum import Enum
 from io import BytesIO
-from typing import Any
 
 from fastapi import HTTPException, status
 from openai import OpenAI
@@ -87,6 +86,7 @@ class ProductAnalysisResponse(BaseModel):
 def analyze_product_specification(
     file_content: bytes,
     filename: str,
+    similar_products_context: str | None = None,
     model: str | None = None,
 ) -> ProductAnalysisResponse:
     """
@@ -101,6 +101,7 @@ def analyze_product_specification(
     Args:
         file_content: The file content as bytes
         filename: The filename (for file upload)
+        similar_products_context: Optional context from similar products' cost models
         model: Optional OpenAI model to use (defaults to settings.openai_model)
     
     Returns:
@@ -154,7 +155,8 @@ def analyze_product_specification(
                                 "You are building a should cost model for the product described in the attached file. "
                                 "You may ONLY use the materials and indices defined in the IndexName type as allowed material cost references. "
                                 "\n\n"
-                                "Your tasks:\n"
+                                + (f"SIMILAR PRODUCTS REFERENCE:\n{similar_products_context}\n\n" if similar_products_context else "")
+                                + "Your tasks:\n"
                                 "1. Identify the total weight of the product in grams\n"
                                 "2. Analyze the product's material composition\n"
                                 "3. For each material constituent, identify:\n"
@@ -167,7 +169,8 @@ def analyze_product_specification(
                                 "- The sum of all material quantities should equal or approximate the total weight\n"
                                 "- If a material cannot be matched to an available index, exclude it\n"
                                 "- Be conservative and realistic with material estimates\n"
-                                "\n"
+                                + ("- Use the similar products above as reference for material composition and quantities\n" if similar_products_context else "")
+                                + "\n"
                                 "Return the structured data with:\n"
                                 "- indices: list of materials with their IndexName and quantity in grams\n"
                                 "- total_weight_grams: total product weight in grams\n"
@@ -218,27 +221,3 @@ def analyze_product_specification(
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail=f"Failed to analyze product specification: {str(exc)}",
         )
-
-
-def estimate_costs(prompt: str, model: str | None = None) -> dict[str, Any]:
-    """
-    Legacy function for cost estimation.
-    Kept for backward compatibility with existing endpoints.
-    """
-    client = _get_client()
-    response = client.chat.completions.create(
-        model=model or settings.openai_model,
-        messages=[
-            {"role": "system", "content": "You are a cost modeling assistant."},
-            {"role": "user", "content": prompt},
-        ],
-    )
-
-    if not response.choices:
-        raise HTTPException(
-            status_code=status.HTTP_502_BAD_GATEWAY,
-            detail="OpenAI API returned an empty response",
-        )
-
-    message = response.choices[0].message
-    return {"raw": message.content}
