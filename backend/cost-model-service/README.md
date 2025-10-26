@@ -1,186 +1,246 @@
-# Cost Model Service
+# Cost Model Service - Backend API
 
-Backend API service for cost modeling and estimation.
+> FastAPI backend for AI-powered cost modeling and estimation
+
+## Overview
+
+RESTful API built with FastAPI that provides cost estimation, document processing, and semantic search capabilities using OpenAI GPT-4 and Weaviate vector database.
 
 ## Tech Stack
 
-- **FastAPI** - Modern web framework
-- **SQLAlchemy** - ORM with async support
-- **PostgreSQL** - Database
-- **Alembic** - Database migrations
-- **uv** - Fast Python package manager
+- **FastAPI 0.110.0** - Web framework
+- **PostgreSQL 15** + **SQLAlchemy 2.0** - Database & ORM
+- **Alembic 1.13.1** - Database migrations
+- **OpenAI 2.6.1** - GPT-4 integration
+- **Weaviate 4.17.0** - Vector database for RAG
+- **Uvicorn 0.29.0** - ASGI server
 
-## Development Setup
+## Quick Start
 
-### Prerequisites
-
-- Python 3.11+
-- [uv](https://github.com/astral-sh/uv) - Install with: `curl -LsSf https://astral.sh/uv/install.sh | sh`
-
-### Install Dependencies
+### Docker (Recommended)
 
 ```bash
-# Using uv (recommended)
-uv pip install -r requirements.txt
+docker-compose up --build cost-model-service
+```
 
-# Or using pip
+### Local Development
+
+```bash
+cd backend/cost-model-service
+
+# Install dependencies
 pip install -r requirements.txt
-```
 
-### Environment Variables
+# Set environment variables
+export CMS_DATABASE_URL="postgresql+asyncpg://postgres:postgres@localhost:5432/cost_model"
+export CMS_OPENAI_API_KEY="sk-proj-your-key"
 
-Create a `.env` file or set these environment variables:
-
-```bash
-CMS_DATABASE_URL=postgresql+asyncpg://postgres:postgres@localhost:5432/cost_model
-CMS_OPENAI_API_KEY=your-api-key-here
-CMS_OPENAI_MODEL=gpt-4o-mini
-```
-
-### Database Setup
-
-```bash
 # Run migrations
 alembic upgrade head
-```
 
-### TAC Index & Synthetic Order Data
-
-- Place `indices.csv` at `backend/indices.csv` (already git-ignored).
-- Place `synthetic_orders.csv` at the repository root (already included).
-- `docker-compose.yml` mounts both CSVs into the backend container (`/app/data/indices.csv` and `/app/data/synthetic_orders.csv`) and `start.sh` automatically runs:
-  - `python -m app.scripts.load_indices_from_csv --file /app/data/indices.csv`
-  - `python -m app.scripts.load_orders_from_csv --file /app/data/synthetic_orders.csv`
-  on every container startup, so price indices and historical order data stay synchronized without manual steps.
-- Supported mass units (`t`, `kg`, `g`) are converted to a normalized `value_per_gram`. Other units (e.g., `MWh`, `h`) are stored as-is with `value_per_gram = null`.
-
-Manual reload command (if you change the CSV while the container is running):
-
-```bash
-docker-compose run --rm \
-  --entrypoint python \
-  cost-model-service \
-  -m app.scripts.load_indices_from_csv --file /app/data/indices.csv
-```
-
-### Run Development Server
-
-```bash
+# Start server
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-## Docker Development
-
-### Build and Run with Docker Compose
-
-```bash
-# Build and start all services
-docker-compose up --build
-
-# Or just the cost-model-service
-docker-compose up --build cost-model-service
-
-# View logs
-docker-compose logs -f cost-model-service
-
-# Stop services
-docker-compose down
-
-# Clean everything (including volumes)
-docker-compose down -v
-```
-
-### Verify Database Schema
-
-```bash
-# Connect to database
-docker-compose exec cost-model-db psql -U postgres -d cost_model
-
-# List tables
-\dt
-
-# Exit
-\q
-```
-
-## API Documentation
-
-Once running, visit:
-
-- Swagger UI: http://localhost:8000/docs
+**Access:**
+- API: http://localhost:8000
+- Swagger Docs: http://localhost:8000/docs
 - ReDoc: http://localhost:8000/redoc
 
-## Project Structure
+## API Endpoints
 
-```
-cost-model-service/
-├── alembic/              # Database migrations
-│   └── versions/         # Migration files
-├── app/
-│   ├── api/             # API routes
-│   │   └── routes/      # Endpoint definitions
-│   ├── core/            # Core configuration
-│   ├── db/              # Database setup
-│   ├── models/          # SQLAlchemy models
-│   ├── schemas/         # Pydantic schemas
-│   └── services/        # Business logic
-├── Dockerfile           # Container definition
-├── requirements.txt     # Python dependencies
-├── pyproject.toml       # Modern Python project config
-└── start.sh            # Container startup script
+### Health Check
+
+```http
+GET /api/v1/health
 ```
 
-## Database Models
+### Articles
 
-- **Articles** - Product/article definitions
-- **Indices** - Price indices for cost modeling
-- **Cost Models** - Article-to-index relationships
-- **Orders** - Historical order data
+```http
+POST   /api/v1/articles                  # Create (supports file upload)
+GET    /api/v1/articles                  # List all
+GET    /api/v1/articles/{id}             # Get by ID
+PATCH  /api/v1/articles/{id}             # Update
+DELETE /api/v1/articles/{id}             # Delete
+GET    /api/v1/articles/{id}/similar     # Find similar (RAG)
+```
 
-## Adding Dependencies
+### Cost Estimation
+
+```http
+POST /api/v1/estimates
+Content-Type: application/json
+
+{
+  "article_id": "uuid",
+  "quantity": 100,
+  "target_date": "2024-03-15"
+}
+```
+
+### Price Indices
+
+```http
+GET  /api/v1/indices              # List all
+POST /api/v1/indices              # Create
+GET  /api/v1/indices/{id}         # Get by ID
+GET  /api/v1/indices/by-name/{name}  # Get by name
+```
+
+### Cost Models
+
+```http
+GET  /api/v1/cost-models                    # List all
+POST /api/v1/cost-models                    # Create
+GET  /api/v1/cost-models/article/{id}       # Get by article
+```
+
+### Orders
+
+```http
+GET  /api/v1/orders               # List all
+POST /api/v1/orders               # Create
+GET  /api/v1/orders/{id}          # Get by ID
+```
+
+## Database Schema
+
+### Main Tables
+
+**articles** - Product information
+- `id` (UUID), `name`, `description`, `weight_grams`, `materials` (JSON), `processes` (JSON)
+- `file_path`, `file_name`, `processing_status`, `extracted_text`, `direct_cost_eur`
+
+**indices** - Price index data
+- `id` (UUID), `name`, `date`, `value`, `unit`, `value_per_gram`, `category`
+
+**cost_models** - Article-to-index relationships
+- `id` (UUID), `article_id` (FK), `index_id` (FK), `weight`, `description`
+
+**orders** - Historical order data
+- `id` (UUID), `article_name`, `quantity`, `unit_price`, `total_price`, `order_date`, `supplier`
+
+### Migrations
 
 ```bash
-# Add a new dependency
-uv pip install package-name
-
-# Freeze dependencies
-uv pip freeze > requirements.txt
-
-# Or update pyproject.toml and sync
-uv pip sync pyproject.toml
-```
-
-## Running Migrations
-
-```bash
-# Create a new migration
+# Create migration
 alembic revision --autogenerate -m "description"
 
 # Apply migrations
 alembic upgrade head
 
-# Rollback one version
+# Rollback
 alembic downgrade -1
+
+# Check current version
+alembic current
 ```
 
-## Troubleshooting
+## Services
 
-### Database Connection Issues
+### OpenAI Client
+Handles GPT-4 integration for text analysis and specification extraction.
 
-- Ensure PostgreSQL is running
-- Check `CMS_DATABASE_URL` environment variable
-- The start.sh script includes retry logic for database connectivity
+### Article Processor
+Processes uploaded documents (PDF/text), extracts specifications using OpenAI, updates articles asynchronously.
 
-### Migration Failures
+### Weaviate Service
+Manages vector embeddings and semantic similarity search for finding related articles.
+
+### Cost Model Builder
+Builds and manages cost models linking articles to price indices.
+
+## Development
+
+### Project Structure
+
+```
+cost-model-service/
+├── alembic/              # Database migrations
+├── app/
+│   ├── api/
+│   │   └── routes/      # API endpoints
+│   ├── core/
+│   │   └── config.py    # Settings
+│   ├── db/              # Database setup
+│   ├── models/          # SQLAlchemy models
+│   ├── schemas/         # Pydantic schemas
+│   ├── services/        # Business logic
+│   ├── scripts/         # Utility scripts
+│   └── main.py          # FastAPI app
+├── requirements.txt
+└── Dockerfile
+```
+
+### Adding New Endpoint
+
+1. Create route in `app/api/routes/`
+2. Register in `app/api/routes/__init__.py`
+3. Test at http://localhost:8000/docs
+
+### Adding New Model
+
+1. Create model in `app/models/`
+2. Import in `app/db/base.py`
+3. Create Pydantic schema in `app/schemas/`
+4. Generate migration: `alembic revision --autogenerate -m "message"`
+5. Apply: `alembic upgrade head`
+
+### Configuration
+
+Settings are managed via Pydantic in `app/core/config.py`. All settings use `CMS_` prefix for environment variables.
+
+### Loading Data
 
 ```bash
-# Check current migration status
-alembic current
+# Load price indices
+docker-compose exec cost-model-service \
+  python -m app.scripts.load_indices_from_csv --file /app/data/indices.csv
 
-# View migration history
-alembic history
-
-# Reset database (WARNING: destroys data)
-docker-compose down -v
-docker-compose up --build
+# Load orders
+docker-compose exec cost-model-service \
+  python -m app.scripts.load_orders_from_csv --file /app/data/synthetic_orders.csv
 ```
+
+## Testing
+
+```bash
+# Run tests
+pytest tests/
+
+# With coverage
+pytest --cov=app tests/
+
+# Manual API testing
+curl -X POST http://localhost:8000/api/v1/articles \
+  -H "Content-Type: application/json" \
+  -d '{"name": "Test Product"}'
+```
+
+## Production
+
+```dockerfile
+# Use Gunicorn with Uvicorn workers
+CMD ["gunicorn", "app.main:app", \
+     "--workers", "4", \
+     "--worker-class", "uvicorn.workers.UvicornWorker", \
+     "--bind", "0.0.0.0:8000"]
+```
+
+**Environment:**
+- Use secrets management (not .env files)
+- Set `CMS_ENV=production`
+- Use managed PostgreSQL
+- Implement monitoring and logging
+
+## Resources
+
+- **FastAPI**: https://fastapi.tiangolo.com/
+- **SQLAlchemy**: https://docs.sqlalchemy.org/
+- **Alembic**: https://alembic.sqlalchemy.org/
+- **OpenAI API**: https://platform.openai.com/docs/
+
+---
+
+See [main README](../../README.md) for full project documentation.
