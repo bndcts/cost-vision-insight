@@ -11,7 +11,7 @@ from app.schemas.index import IndexRead
 class CostModelBase(BaseModel):
     article_id: int
     index_id: int
-    part: Decimal  # grams attributed to this index
+    part: Decimal  # quantity attributed to this index (grams, hours, etc.)
 
 
 class CostModelCreate(CostModelBase):

@@ -75,6 +75,17 @@ else
     exit 1
 fi
 
+ORDERS_CSV_PATH="${CMS_ORDERS_CSV_PATH:-/app/data/synthetic_orders.csv}"
+if [ -f "$ORDERS_CSV_PATH" ]; then
+    echo "Loading order data from $ORDERS_CSV_PATH..."
+    if ! python -m app.scripts.load_orders_from_csv --file "$ORDERS_CSV_PATH"; then
+        echo "Error: Failed to load order data"
+        exit 1
+    fi
+else
+    echo "Warning: Orders CSV not found at $ORDERS_CSV_PATH (skipping preload)"
+fi
+
 # Start the application
 echo "Starting uvicorn server..."
 exec uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload

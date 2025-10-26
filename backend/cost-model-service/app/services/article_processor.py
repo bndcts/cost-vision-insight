@@ -6,16 +6,20 @@ Also integrates with Weaviate for similar article search via RAG.
 import logging
 from datetime import datetime, timezone
 
-from sqlalchemy import delete, select
+from sqlalchemy import delete, select, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.article import Article
 from app.models.cost_model import CostModel
 from app.models.index import Index
+from app.models.order import Order
 from app.services.openai_client import analyze_product_specification
 from app.services.weaviate_service import get_weaviate_service
 
 logger = logging.getLogger(__name__)
+
+LABOR_INDEX_NAME = "Arbeitskosten Deutschland [€/h] (Eurostat)"
+ELECTRICITY_INDEX_NAME = "Strom [€/MWh] (Finanzen.net)"
 
 
 async def process_article_async(article_id: int, db: AsyncSession) -> None:
@@ -71,7 +75,7 @@ async def process_article_async(article_id: int, db: AsyncSession) -> None:
             
             if ingested:
                 # Find similar articles
-                logger.info(f"Finding similar articles for article {article_id}")
+                logger.info(f"Finding similar articles for article {article_id}b")
                 similar_article_ids = weaviate_service.find_similar_articles(article_id)
                 
                 if similar_article_ids:
@@ -121,6 +125,34 @@ async def process_article_async(article_id: int, db: AsyncSession) -> None:
             )
 
         # Step 2: Analyze the product specification using OpenAI with similar products context
+        # Determine latest observed article price from orders (if any)
+        async def _latest_article_price() -> float | None:
+            stmt = (
+                select(Order.price)
+                .where(
+                    or_(
+                        Order.article_id == article_id,
+                        Order.article_name == article.article_name,
+                    )
+                )
+                .order_by(Order.order_date.desc())
+            )
+            result = await db.execute(stmt)
+            price_value = result.scalars().first()
+            return float(price_value) if price_value is not None else None
+
+        price_hint = await _latest_article_price()
+
+        context_notes: list[str] = []
+        if article.description:
+            context_notes.append(f"Description: {article.description}")
+        if article.comment:
+            context_notes.append(f"Notes: {article.comment}")
+        if article.unit_weight:
+            context_notes.append(f"Unit weight: {float(article.unit_weight):.4f} kg")
+        article_context = " ".join(context_notes) if context_notes else None
+
+        # Analyze the product specification using OpenAI structured outputs
         logger.info(f"Analyzing product specification for article {article_id}")
         if similar_products_context:
             logger.info("Using similar products as context for analysis")
@@ -130,6 +162,8 @@ async def process_article_async(article_id: int, db: AsyncSession) -> None:
                 file_content=spec_bytes,
                 filename=spec_filename,
                 similar_products_context=similar_products_context,
+                article_price_eur=price_hint,
+                article_context=article_context,
             )
         except Exception as exc:
             logger.error(f"Error analyzing product specification: {exc}", exc_info=True)
@@ -193,6 +227,59 @@ async def process_article_async(article_id: int, db: AsyncSession) -> None:
                 logger.info(
                     f"  Added cost model: {index_name} = {material_index.quantity_grams:.2f}g"
                 )
+
+            # Add labor cost contribution if provided
+            labor_hours = (
+                float(analysis.labor_hours)
+                if analysis.labor_hours and analysis.labor_hours > 0
+                else None
+            )
+            if labor_hours:
+                labor_index = indices_by_name.get(LABOR_INDEX_NAME)
+                if labor_index:
+                    db.add(
+                        CostModel(
+                            article_id=article_id,
+                            index_id=labor_index.id,
+                            part=round(labor_hours, 4),
+                        )
+                    )
+                    created_count += 1
+                    logger.info(
+                        f"  Added labor effort: {labor_hours:.2f} h"
+                    )
+                else:
+                    logger.warning(
+                        "Labor index '%s' not found in DB; skipping labor contribution",
+                        LABOR_INDEX_NAME,
+                    )
+
+            # Add electricity cost contribution if provided
+            electricity_kwh = (
+                float(analysis.electricity_kwh)
+                if analysis.electricity_kwh and analysis.electricity_kwh > 0
+                else None
+            )
+            if electricity_kwh:
+                energy_index = indices_by_name.get(ELECTRICITY_INDEX_NAME)
+                if energy_index:
+                    quantity_mwh = electricity_kwh / 1000.0
+                    db.add(
+                        CostModel(
+                            article_id=article_id,
+                            index_id=energy_index.id,
+                            part=round(quantity_mwh, 6),
+                        )
+                    )
+                    created_count += 1
+                    logger.info(
+                        f"  Added electricity usage: {electricity_kwh:.2f} kWh"
+                    )
+                else:
+                    logger.warning(
+                        "Electricity index '%s' not found in DB; skipping electricity contribution",
+                        ELECTRICITY_INDEX_NAME,
+                    )
 
             await db.commit()
             logger.info(

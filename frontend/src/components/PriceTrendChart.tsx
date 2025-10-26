@@ -1,16 +1,19 @@
 import { useMemo } from "react";
 import { Card } from "@/components/ui/card";
 import {
-  LineChart,
+  CartesianGrid,
+  Legend,
   Line,
+  LineChart,
+  ResponsiveContainer,
+  Tooltip,
   XAxis,
   YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
 } from "recharts";
-import { useArticleIndicesValues } from "@/lib/api";
+import {
+  useArticleIndicesValues,
+  useArticlePriceHistory,
+} from "@/lib/api";
 
 interface PriceTrendChartProps {
   articleId: number | null;
@@ -18,56 +21,87 @@ interface PriceTrendChartProps {
 
 interface ChartDataPoint {
   date: string;
-  [key: string]: number | string;
+  articlePrice?: number;
+  rawMaterials?: number;
+  laborCost?: number;
+  electricityCost?: number;
 }
 
-const CHART_COLORS = [
-  "hsl(var(--chart-1))",
-  "hsl(var(--chart-2))",
-  "hsl(var(--chart-3))",
-  "hsl(var(--chart-4))",
-  "hsl(var(--chart-5))",
-];
+const LABOR_INDEX_NAME = "Arbeitskosten Deutschland [€/h] (Eurostat)";
+const ELECTRICITY_INDEX_NAME = "Strom [€/MWh] (Finanzen.net)";
 
 export const PriceTrendChart = ({ articleId }: PriceTrendChartProps) => {
-  const { data, isLoading, error } = useArticleIndicesValues(articleId);
+  const {
+    data: priceHistory,
+    isLoading: priceIsLoading,
+    error: priceError,
+  } = useArticlePriceHistory(articleId);
+  const {
+    data: indicesData,
+    isLoading: indicesIsLoading,
+    error: indicesError,
+  } = useArticleIndicesValues(articleId);
 
-  const { chartData, indexNames } = useMemo(() => {
-    if (!data || !data.indices || data.indices.length === 0) {
-      return { chartData: [], indexNames: [] };
+  const chartData = useMemo<ChartDataPoint[]>(() => {
+    if (!priceHistory && !indicesData) {
+      return [];
     }
 
-    // Transform data for recharts
-    const dateMap: Record<string, ChartDataPoint> = {};
+    const dateMap: Record<
+      string,
+      ChartDataPoint & { isoDate: string }
+    > = {};
 
-    data.indices.forEach((index) => {
-      index.values.forEach((point) => {
-        if (!dateMap[point.date]) {
-          dateMap[point.date] = { date: point.date };
+    const ensureEntry = (isoDate: string) => {
+      if (!dateMap[isoDate]) {
+        const label = new Date(isoDate).toLocaleDateString("en-US", {
+          month: "short",
+          day: "numeric",
+          year: "numeric",
+        });
+        dateMap[isoDate] = { isoDate, date: label };
+      }
+      return dateMap[isoDate];
+    };
+
+    priceHistory?.points.forEach((point) => {
+      const isoDate = new Date(point.order_date).toISOString().split("T")[0];
+      const entry = ensureEntry(isoDate);
+      entry.articlePrice = Number(point.price);
+    });
+
+    indicesData?.indices.forEach((index) => {
+      index.values.forEach((value) => {
+        const isoDate = new Date(value.date).toISOString().split("T")[0];
+        const entry = ensureEntry(isoDate);
+        const valueNumber = Number(value.value);
+
+        if (index.index_name === LABOR_INDEX_NAME) {
+          entry.laborCost = (entry.laborCost || 0) + valueNumber;
+        } else if (index.index_name === ELECTRICITY_INDEX_NAME) {
+          entry.electricityCost =
+            (entry.electricityCost || 0) + valueNumber;
+        } else if (index.is_material) {
+          entry.rawMaterials = (entry.rawMaterials || 0) + valueNumber;
         }
-        dateMap[point.date][index.index_name] = point.value;
       });
     });
 
-    // Convert to array and sort by date
-    const transformedData = Object.values(dateMap).sort(
-      (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
-    );
+    const cutoffDate = new Date();
+    cutoffDate.setFullYear(cutoffDate.getFullYear() - 3);
 
-    // Format dates for display
-    const formattedData = transformedData.map((item) => ({
-      ...item,
-      date: new Date(item.date).toLocaleDateString("en-US", {
-        month: "short",
-        year: "numeric",
-      }),
-    }));
+    const filteredEntries = Object.values(dateMap).filter(({ isoDate }) => {
+      const entryDate = new Date(isoDate);
+      return entryDate >= cutoffDate;
+    });
 
-    return {
-      chartData: formattedData,
-      indexNames: data.indices.map((idx) => idx.index_name),
-    };
-  }, [data]);
+    return filteredEntries
+      .sort((a, b) => a.isoDate.localeCompare(b.isoDate))
+      .map(({ isoDate: _iso, ...rest }) => rest);
+  }, [priceHistory, indicesData]);
+
+  const isLoading = priceIsLoading || indicesIsLoading;
+  const error = priceError || indicesError;
 
   if (!articleId) {
     return (
@@ -94,7 +128,7 @@ export const PriceTrendChart = ({ articleId }: PriceTrendChartProps) => {
       <Card className="p-6 shadow-lg">
         <h3 className="text-xl font-bold mb-6">Price Trend Analysis</h3>
         <p className="text-sm text-muted-foreground">
-          {error ? "Failed to load price trend data" : "No data available"}
+          {error ? "Failed to load price data" : "No price data available"}
         </p>
       </Card>
     );
@@ -104,7 +138,7 @@ export const PriceTrendChart = ({ articleId }: PriceTrendChartProps) => {
     <Card className="p-6 shadow-lg">
       <h3 className="text-xl font-bold mb-6">Price Trend Analysis</h3>
       <p className="text-sm text-muted-foreground mb-4">
-        Historical price trends for materials used in this article
+        Article price broken down against raw materials, labor, and electricity contributions
       </p>
 
       <div className="h-80">
@@ -117,6 +151,7 @@ export const PriceTrendChart = ({ articleId }: PriceTrendChartProps) => {
               style={{ fontSize: "12px" }}
             />
             <YAxis
+              yAxisId="price"
               stroke="hsl(var(--foreground))"
               style={{ fontSize: "12px" }}
               label={{
@@ -133,17 +168,42 @@ export const PriceTrendChart = ({ articleId }: PriceTrendChartProps) => {
               }}
             />
             <Legend />
-            {indexNames.map((indexName, idx) => (
-              <Line
-                key={indexName}
-                type="monotone"
-                dataKey={indexName}
-                stroke={CHART_COLORS[idx % CHART_COLORS.length]}
-                strokeWidth={2}
-                name={indexName}
-                dot={{ r: 3 }}
-              />
-            ))}
+            <Line
+              yAxisId="price"
+              type="monotone"
+              dataKey="articlePrice"
+              stroke="hsl(var(--chart-1))"
+              strokeWidth={2}
+              name="Article price"
+              dot={{ r: 3 }}
+            />
+            <Line
+              yAxisId="price"
+              type="monotone"
+              dataKey="rawMaterials"
+              stroke="hsl(var(--chart-2))"
+              strokeWidth={2}
+              name="Raw materials"
+              dot={{ r: 3 }}
+            />
+            <Line
+              yAxisId="price"
+              type="monotone"
+              dataKey="laborCost"
+              stroke="hsl(var(--chart-3))"
+              strokeWidth={2}
+              name="Labor cost"
+              dot={{ r: 3 }}
+            />
+            <Line
+              yAxisId="price"
+              type="monotone"
+              dataKey="electricityCost"
+              stroke="hsl(var(--chart-4))"
+              strokeWidth={2}
+              name="Electricity cost"
+              dot={{ r: 3 }}
+            />
           </LineChart>
         </ResponsiveContainer>
       </div>

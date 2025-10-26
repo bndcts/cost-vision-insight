@@ -26,22 +26,30 @@ export const MaterialCompositionChart = ({
       return [];
     }
 
+    const materialIndices = data.indices.filter(
+      (index) => index.is_material
+    );
+
+    if (materialIndices.length === 0) {
+      return [];
+    }
+
     // Calculate total weight
-    const totalWeight = data.indices.reduce(
-      (sum, index) => sum + index.quantity_grams,
+    const totalWeight = materialIndices.reduce(
+      (sum, index) => sum + index.quantity_value,
       0
     );
 
     // Create radar chart data
-    return data.indices.map((index) => {
+    return materialIndices.map((index) => {
       // Get just the material name (remove the unit and source info)
       const shortName = index.index_name.split("[")[0].trim();
-      const percentage = (index.quantity_grams / totalWeight) * 100;
+      const percentage = (index.quantity_value / totalWeight) * 100;
 
       return {
         material: shortName,
         percentage: Math.round(percentage * 10) / 10, // Round to 1 decimal
-        grams: Math.round(index.quantity_grams * 10) / 10,
+        grams: Math.round(index.quantity_value * 10) / 10,
         fullName: index.index_name,
       };
     });

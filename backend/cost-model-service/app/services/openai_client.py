@@ -81,6 +81,8 @@ class ProductAnalysisResponse(BaseModel):
     indices: list[MaterialIndex]
     total_weight_grams: float
     unit: Unit = Unit.G
+    labor_hours: float | None = None
+    electricity_kwh: float | None = None
 
 
 def analyze_product_specification(
@@ -88,6 +90,8 @@ def analyze_product_specification(
     filename: str,
     similar_products_context: str | None = None,
     model: str | None = None,
+    article_price_eur: float | None = None,
+    article_context: str | None = None,
 ) -> ProductAnalysisResponse:
     """
     Analyze a product specification file using OpenAI's structured output.
@@ -103,6 +107,8 @@ def analyze_product_specification(
         filename: The filename (for file upload)
         similar_products_context: Optional context from similar products' cost models
         model: Optional OpenAI model to use (defaults to settings.openai_model)
+        article_price_eur: Optional known market/order price for one unit (EUR)
+        article_context: Optional textual context/complexity description for the article
     
     Returns:
         ProductAnalysisResponse with indices (materials) and total weight
@@ -128,6 +134,21 @@ def analyze_product_specification(
         
         # Step 2: Call OpenAI with structured output parsing
         logger.info("Calling OpenAI for product analysis with structured output")
+
+        context_lines: list[str] = []
+        if article_price_eur is not None:
+            context_lines.append(
+                f"Observed market price ≈ {article_price_eur:.2f} EUR per unit. "
+                "Ensure the combined materials, labor, and electricity align with this reality."
+            )
+        if article_context:
+            context_lines.append(f"Article context/complexity: {article_context.strip()}")
+
+        extra_context = ""
+        if context_lines:
+            extra_context = "\n5. Additional context:\n" + "\n".join(
+                f"   - {line}" for line in context_lines
+            )
         completion = client.chat.completions.parse(
             model='gpt-4o',
             response_format=ProductAnalysisResponse,
@@ -162,6 +183,10 @@ def analyze_product_specification(
                                 "3. For each material constituent, identify:\n"
                                 "   - Which IndexName from the enum best matches it\n"
                                 "   - The quantity of that material in grams\n"
+                                "4. Estimate the manufacturing effort required strictly for ONE unit of the product:\n"
+                                "   - Total labor hours (in hours) spent on producing a single unit from start to finish\n"
+                                "   - Total electricity consumption (in kWh) for that same single unit\n"
+                                f"{extra_context}\n"
                                 "\n"
                                 "Important rules:\n"
                                 "- All quantities must be in grams (g)\n"
@@ -171,10 +196,19 @@ def analyze_product_specification(
                                 "- Be conservative and realistic with material estimates\n"
                                 + ("- Use the similar products above as reference for material composition and quantities\n" if similar_products_context else "")
                                 + "\n"
+                                "- Labor and electricity must represent ONLY the effort/energy to build a single unit, "
+                                "but electricity should include the incremental machine usage, workstation lighting, and other direct production overhead for that part."
+                                "\n"
                                 "Return the structured data with:\n"
                                 "- indices: list of materials with their IndexName and quantity in grams\n"
                                 "- total_weight_grams: total product weight in grams\n"
-                                "- unit: always 'g'"
+                                "- unit: always 'g'\n"
+                                "- labor_hours: total labor hours consumed per unit (float)\n"
+                                "- electricity_kwh: total electricity consumption per unit (float)\n"
+                                "\n"
+                                "Calibration guidance:\n"
+                                "- For small fittings or machined components, direct labor should rarely exceed a few minutes. Unless drawings clearly indicate long manual processing, keep labor estimates between 0.03 h and 0.25 h (≈2-15 minutes) per unit.\n"
+                                "- Electricity usage per unit is typically modest (fractions of a single kWh up to ~5 kWh). Only exceed this if the spec explicitly describes very energy-intensive processing."
                             ),
                         },
                     ]

@@ -5,13 +5,16 @@ const API_BASE_URL = "http://localhost:8000/api/v1";
 export interface IndexValuePoint {
   date: string;
   value: number;
+  unit_value?: number | null;
 }
 
 export interface ArticleIndexData {
   index_id: number;
   index_name: string;
   unit: string;
-  quantity_grams: number;
+  quantity_value: number;
+  quantity_unit: string;
+  is_material: boolean;
   values: IndexValuePoint[];
 }
 
@@ -19,6 +22,20 @@ export interface ArticleIndicesValuesResponse {
   article_id: number;
   article_name: string;
   indices: ArticleIndexData[];
+}
+
+export interface ArticlePricePoint {
+  order_id: number;
+  order_date: string;
+  price: number;
+  price_factor: number;
+  unit: string;
+}
+
+export interface ArticlePriceHistoryResponse {
+  article_id: number;
+  article_name: string;
+  points: ArticlePricePoint[];
 }
 
 export interface ArticleStatusResponse {
@@ -80,6 +97,20 @@ async function fetchArticle(articleId: number): Promise<ArticleResponse> {
   return response.json();
 }
 
+async function fetchArticlePriceHistory(
+  articleId: number
+): Promise<ArticlePriceHistoryResponse> {
+  const response = await fetch(
+    `${API_BASE_URL}/articles/${articleId}/price-history`
+  );
+
+  if (!response.ok) {
+    throw new Error("Failed to fetch price history");
+  }
+
+  return response.json();
+}
+
 export function useArticleIndicesValues(articleId: number | null) {
   return useQuery({
     queryKey: ["article-indices-values", articleId],
@@ -109,5 +140,14 @@ export function useArticle(articleId: number | null) {
     queryKey: ["article", articleId],
     queryFn: () => fetchArticle(articleId!),
     enabled: articleId !== null,
+  });
+}
+
+export function useArticlePriceHistory(articleId: number | null) {
+  return useQuery({
+    queryKey: ["article-price-history", articleId],
+    queryFn: () => fetchArticlePriceHistory(articleId!),
+    enabled: articleId !== null,
+    staleTime: 1000 * 60 * 5,
   });
 }

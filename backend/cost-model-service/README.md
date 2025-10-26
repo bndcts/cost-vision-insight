@@ -44,10 +44,14 @@ CMS_OPENAI_MODEL=gpt-4o-mini
 alembic upgrade head
 ```
 
-### TAC Index Data
+### TAC Index & Synthetic Order Data
 
-- Place `indices.csv` in `backend/indices.csv` (already git-ignored).  
-- `docker-compose.yml` mounts the CSV into the backend container at `/app/data/indices.csv` and `start.sh` automatically runs `python -m app.scripts.load_indices_from_csv --file /app/data/indices.csv` on every container startup, so the indices table is refreshed without manual steps.
+- Place `indices.csv` at `backend/indices.csv` (already git-ignored).
+- Place `synthetic_orders.csv` at the repository root (already included).
+- `docker-compose.yml` mounts both CSVs into the backend container (`/app/data/indices.csv` and `/app/data/synthetic_orders.csv`) and `start.sh` automatically runs:
+  - `python -m app.scripts.load_indices_from_csv --file /app/data/indices.csv`
+  - `python -m app.scripts.load_orders_from_csv --file /app/data/synthetic_orders.csv`
+  on every container startup, so price indices and historical order data stay synchronized without manual steps.
 - Supported mass units (`t`, `kg`, `g`) are converted to a normalized `value_per_gram`. Other units (e.g., `MWh`, `h`) are stored as-is with `value_per_gram = null`.
 
 Manual reload command (if you change the CSV while the container is running):

@@ -24,6 +24,7 @@ services:
       CMS_OPENAI_API_KEY: ${CMS_OPENAI_API_KEY:-}
       CMS_OPENAI_MODEL: ${CMS_OPENAI_MODEL:-gpt-4o-mini}
       CMS_INDEX_CSV_PATH: ${CMS_INDEX_CSV_PATH:-/app/data/indices.csv}
+      CMS_ORDERS_CSV_PATH: ${CMS_ORDERS_CSV_PATH:-/app/data/synthetic_orders.csv}
       CMS_ENV: development
       CMS_WEAVIATE_URL: ${CMS_WEAVIATE_URL:-}
       CMS_WEAVIATE_API_KEY: ${CMS_WEAVIATE_API_KEY:-}
@@ -36,6 +37,8 @@ services:
       - "8000:8000"
     volumes:
       - ./backend/indices.csv:/app/data/indices.csv:ro
+      - ./synthetic_orders.csv:/app/data/synthetic_orders.csv:ro
+      - ./backend/cost-model-service/start.sh:/app/start.sh:ro
       - ./backend/cost-model-service/app:/app/app:ro # Mount app code for hot-reload
     restart: unless-stopped
 
