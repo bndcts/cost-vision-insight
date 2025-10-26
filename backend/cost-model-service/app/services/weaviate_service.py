@@ -39,10 +39,9 @@ class WeaviateService:
                 
                 auth = AuthApiKey(self.settings.weaviate_api_key) if self.settings.weaviate_api_key else None
                 
-                # Type ignore needed because auth can be None but weaviate typing is strict
-                self._client = weaviate.connect_to_weaviate_cloud(  # type: ignore
+                self._client = weaviate.connect_to_weaviate_cloud(
                     cluster_url=self.settings.weaviate_url,
-                    auth_credentials=auth,
+                    auth_credentials=auth,  # type: ignore[arg-type]
                     headers=headers or None,
                     additional_config=AdditionalConfig(timeout=(15, 60)),
                 )
@@ -68,7 +67,7 @@ class WeaviateService:
             client.collections.create(
                 name=ARTICLE_DOCUMENT_COLLECTION,
                 description="Product specification documents for similarity search",
-                vector_config=Configure.Vectorizer.text2vec_openai(),
+                vectorizer_config=Configure.Vectorizer.text2vec_openai(),
                 properties=[
                     Property(name="article_id", data_type=DataType.INT),
                     Property(name="article_name", data_type=DataType.TEXT),
