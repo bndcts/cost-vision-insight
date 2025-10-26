@@ -64,13 +64,18 @@ export const CostBreakdown = ({
     );
   }
 
-  const chartData = [
-    { name: "Raw Materials", value: data.materials, color: colorRamp[0] },
-    { name: "Labor", value: data.labor, color: colorRamp[1] },
-    { name: "Electricity", value: data.electricity, color: colorRamp[2] },
-    { name: "Overhead (20%)", value: data.overhead, color: colorRamp[3] },
-    { name: "Profit Margin", value: data.profit, color: colorRamp[4] },
+  const chartSegments = [
+    { name: "Raw Materials", rawValue: data.materials, color: colorRamp[0] },
+    { name: "Labor", rawValue: data.labor, color: colorRamp[1] },
+    { name: "Electricity", rawValue: data.electricity, color: colorRamp[2] },
+    { name: "Overhead (15%)", rawValue: data.overhead, color: colorRamp[3] },
+    { name: "Profit Margin", rawValue: data.profit, color: colorRamp[4] },
   ];
+
+  const chartData = chartSegments.map((segment) => ({
+    ...segment,
+    value: Math.max(segment.rawValue, 0),
+  }));
 
   return (
     <Card className="p-6 shadow-lg">
@@ -95,7 +100,13 @@ export const CostBreakdown = ({
                 ))}
               </Pie>
               <Tooltip
-                formatter={(value: number) => formatter.format(value)}
+                formatter={(value: number, _name, props) =>
+                  formatter.format(
+                    typeof props?.payload?.rawValue === "number"
+                      ? props.payload.rawValue
+                      : value
+                  )
+                }
               />
             </PieChart>
           </ResponsiveContainer>
@@ -109,7 +120,7 @@ export const CostBreakdown = ({
             </span>
           </div>
           
-          {chartData.map((item) => (
+          {chartSegments.map((item) => (
             <div key={item.name} className="flex justify-between items-center p-3 border rounded-lg">
               <div className="flex items-center gap-2">
                 <div
@@ -119,7 +130,7 @@ export const CostBreakdown = ({
                 <span className="text-sm font-medium">{item.name}</span>
               </div>
               <span className="font-semibold">
-                {formatter.format(item.value)}
+                {formatter.format(item.rawValue)}
               </span>
             </div>
           ))}

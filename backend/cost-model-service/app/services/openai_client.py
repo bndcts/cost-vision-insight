@@ -207,8 +207,9 @@ def analyze_product_specification(
                                 "- electricity_kwh: total electricity consumption per unit (float)\n"
                                 "\n"
                                 "Calibration guidance:\n"
-                                "- For small fittings or machined components, direct labor should rarely exceed a few minutes. Unless drawings clearly indicate long manual processing, keep labor estimates between 0.03 h and 0.25 h (≈2-15 minutes) per unit.\n"
-                                "- Electricity usage per unit is typically modest (fractions of a single kWh up to ~5 kWh). Only exceed this if the spec explicitly describes very energy-intensive processing."
+                                "- For small fittings or machined components, direct labor should rarely exceed a few minutes. Unless drawings clearly indicate long manual processing, keep labor estimates between 0.03 h and 0.25 h (≈2-15 minutes) per unit. Labor should typically account for less than 30% of the total article price.\n"
+                                "- Electricity usage per unit is typically modest (fractions of a single kWh up to ~5 kWh). Only exceed this if the spec explicitly describes very energy-intensive processing, and include the incremental energy for machinery, workstation lighting, and handling that is directly tied to producing one unit.\n"
+                                "- Combine the material, labor, and electricity contributions so that, together, they reasonably explain the article price noted above. If the market price is low, keep the non-material costs correspondingly low."
                             ),
                         },
                     ]
