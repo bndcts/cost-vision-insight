@@ -290,9 +290,14 @@ async def get_article_indices_values(
 
         quantity_value = indices_data[index_record.name]["quantity_value"]
         value_per_gram = index_record.value_per_gram
-
+        
+        # Check if this cost model has a direct EUR value
+        cost_model = next((cm for cm in cost_models if cm.index_id == index_record.id), None)
+        if cost_model and cost_model.direct_cost_eur is not None:
+            # Use direct cost instead of calculating from index
+            cost_value = float(cost_model.direct_cost_eur)
         # Compute actual article cost contribution for this index/date
-        if value_per_gram is not None:
+        elif value_per_gram is not None:
             cost_value = float(value_per_gram) * quantity_value
         elif index_record.price_factor and index_record.price_factor != 0:
             # Fallback using unit price / grams factor if value_per_gram missing
@@ -360,6 +365,22 @@ async def get_article_cost_breakdown(
             if not latest_index:
                 continue
 
+            # Check if this cost model has a direct EUR value
+            if cm.direct_cost_eur is not None:
+                direct_cost = float(cm.direct_cost_eur)
+                
+                # Categorize the direct cost based on the index it's associated with
+                if latest_index.name == LABOR_INDEX_NAME:
+                    labor_cost += direct_cost
+                elif latest_index.name == ELECTRICITY_INDEX_NAME:
+                    electricity_cost += direct_cost
+                else:
+                    # Other manufacturing costs - add to materials_cost for now
+                    # (could add a separate category if needed)
+                    materials_cost += direct_cost
+                continue
+
+            # Traditional quantity-based calculation
             quantity = float(cm.part)
             value = float(latest_index.value or 0)
 

@@ -228,25 +228,26 @@ async def process_article_async(article_id: int, db: AsyncSession) -> None:
                     f"  Added cost model: {index_name} = {material_index.quantity_grams:.2f}g"
                 )
 
-            # Add labor cost contribution if provided
-            labor_hours = (
-                float(analysis.labor_hours)
-                if analysis.labor_hours and analysis.labor_hours > 0
+            # Add labor cost contribution if provided (as direct EUR value)
+            labor_cost_eur = (
+                float(analysis.labor_cost_eur)
+                if analysis.labor_cost_eur and analysis.labor_cost_eur > 0
                 else None
             )
-            if labor_hours:
+            if labor_cost_eur:
                 labor_index = indices_by_name.get(LABOR_INDEX_NAME)
                 if labor_index:
                     db.add(
                         CostModel(
                             article_id=article_id,
                             index_id=labor_index.id,
-                            part=round(labor_hours, 4),
+                            part=1.0,  # Quantity is 1 unit, actual cost is in direct_cost_eur
+                            direct_cost_eur=round(labor_cost_eur, 4),
                         )
                     )
                     created_count += 1
                     logger.info(
-                        f"  Added labor effort: {labor_hours:.2f} h"
+                        f"  Added labor cost: {labor_cost_eur:.2f} EUR"
                     )
                 else:
                     logger.warning(
@@ -254,31 +255,56 @@ async def process_article_async(article_id: int, db: AsyncSession) -> None:
                         LABOR_INDEX_NAME,
                     )
 
-            # Add electricity cost contribution if provided
-            electricity_kwh = (
-                float(analysis.electricity_kwh)
-                if analysis.electricity_kwh and analysis.electricity_kwh > 0
+            # Add electricity cost contribution if provided (as direct EUR value)
+            electricity_cost_eur = (
+                float(analysis.electricity_cost_eur)
+                if analysis.electricity_cost_eur and analysis.electricity_cost_eur > 0
                 else None
             )
-            if electricity_kwh:
+            if electricity_cost_eur:
                 energy_index = indices_by_name.get(ELECTRICITY_INDEX_NAME)
                 if energy_index:
-                    quantity_mwh = electricity_kwh / 1000.0
                     db.add(
                         CostModel(
                             article_id=article_id,
                             index_id=energy_index.id,
-                            part=round(quantity_mwh, 6),
+                            part=1.0,  # Quantity is 1 unit, actual cost is in direct_cost_eur
+                            direct_cost_eur=round(electricity_cost_eur, 4),
                         )
                     )
                     created_count += 1
                     logger.info(
-                        f"  Added electricity usage: {electricity_kwh:.2f} kWh"
+                        f"  Added electricity cost: {electricity_cost_eur:.2f} EUR"
                     )
                 else:
                     logger.warning(
                         "Electricity index '%s' not found in DB; skipping electricity contribution",
                         ELECTRICITY_INDEX_NAME,
+                    )
+            
+            # Add other manufacturing costs if provided (as direct EUR value)
+            other_costs_eur = (
+                float(analysis.other_manufacturing_costs_eur)
+                if analysis.other_manufacturing_costs_eur and analysis.other_manufacturing_costs_eur > 0
+                else None
+            )
+            if other_costs_eur:
+                # Use a generic "other costs" placeholder index (we'll use any available index as a marker)
+                # If we don't have a suitable index, we could create a sentinel, but for now we'll just skip
+                # Actually, let's just use the first available index as a placeholder since we're using direct_cost_eur
+                if indices_by_name:
+                    placeholder_index = next(iter(indices_by_name.values()))
+                    db.add(
+                        CostModel(
+                            article_id=article_id,
+                            index_id=placeholder_index.id,
+                            part=0.0,  # Part is 0 to indicate this is a direct cost, not quantity-based
+                            direct_cost_eur=round(other_costs_eur, 4),
+                        )
+                    )
+                    created_count += 1
+                    logger.info(
+                        f"  Added other manufacturing costs: {other_costs_eur:.2f} EUR"
                     )
 
             await db.commit()

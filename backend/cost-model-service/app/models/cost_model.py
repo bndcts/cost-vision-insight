@@ -22,7 +22,11 @@ class CostModel(Base):
         ForeignKey("indices.id", ondelete="CASCADE"), primary_key=True
     )
     # part stores the quantity associated with this index (grams, hours, MWh, ...)
+    # For material indices, this is the quantity. For direct cost entries, this can be 0 or 1.
     part: Mapped[float] = mapped_column(Numeric(8, 4), nullable=False)
+    # direct_cost_eur: when set, this is a direct EUR cost (not quantity * index_value)
+    # Used for AI-estimated labor, electricity, and other manufacturing costs
+    direct_cost_eur: Mapped[float | None] = mapped_column(Numeric(10, 4), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,

@@ -81,8 +81,9 @@ class ProductAnalysisResponse(BaseModel):
     indices: list[MaterialIndex]
     total_weight_grams: float
     unit: Unit = Unit.G
-    labor_hours: float | None = None
-    electricity_kwh: float | None = None
+    labor_cost_eur: float | None = None
+    electricity_cost_eur: float | None = None
+    other_manufacturing_costs_eur: float | None = None
 
 
 def analyze_product_specification(
@@ -173,43 +174,46 @@ def analyze_product_specification(
                         {
                             "type": "text",
                             "text": (
-                                "You are building a should cost model for the product described in the attached file. "
-                                "You may ONLY use the materials and indices defined in the IndexName type as allowed material cost references. "
+                                "You are building a complete should-cost model for the product described in the attached file. "
+                                "You will estimate ALL costs directly in EUR, except for raw materials which must use the predefined IndexName types. "
                                 "\n\n"
                                 + (f"SIMILAR PRODUCTS REFERENCE:\n{similar_products_context}\n\n" if similar_products_context else "")
                                 + "Your tasks:\n"
                                 "1. Identify the total weight of the product in grams\n"
-                                "2. Analyze the product's material composition\n"
-                                "3. For each material constituent, identify:\n"
-                                "   - Which IndexName from the enum best matches it\n"
-                                "   - The quantity of that material in grams\n"
-                                "4. Estimate the manufacturing effort required strictly for ONE unit of the product:\n"
-                                "   - Total labor hours (in hours) spent on producing a single unit from start to finish\n"
-                                "   - Total electricity consumption (in kWh) for that same single unit\n"
+                                "2. Analyze the product's material composition:\n"
+                                "   - For each material constituent, identify which IndexName from the enum best matches it\n"
+                                "   - Specify the quantity of that material in grams\n"
+                                "   - Only use index names from the IndexName enum for materials\n"
+                                "3. Estimate ALL manufacturing costs directly in EUR for ONE unit:\n"
+                                "   - labor_cost_eur: Direct labor cost in EUR for producing one unit (consider wages, skill level, time)\n"
+                                "   - electricity_cost_eur: Electricity cost in EUR for producing one unit (machinery, lighting, equipment)\n"
+                                "   - other_manufacturing_costs_eur: All other manufacturing costs in EUR per unit (tooling, depreciation, setup, quality control, packaging, etc.)\n"
                                 f"{extra_context}\n"
                                 "\n"
                                 "Important rules:\n"
-                                "- All quantities must be in grams (g)\n"
-                                "- Only use index names from the IndexName enum\n"
+                                "- Material quantities must be in grams (g)\n"
+                                "- Only use index names from the IndexName enum for materials\n"
                                 "- The sum of all material quantities should equal or approximate the total weight\n"
                                 "- If a material cannot be matched to an available index, exclude it\n"
-                                "- Be conservative and realistic with material estimates\n"
-                                + ("- Use the similar products above as reference for material composition and quantities\n" if similar_products_context else "")
+                                "- Be conservative and realistic with all estimates\n"
+                                + ("- Use the similar products above as reference for material composition and cost estimates\n" if similar_products_context else "")
                                 + "\n"
-                                "- Labor and electricity must represent ONLY the effort/energy to build a single unit, "
-                                "but electricity should include the incremental machine usage, workstation lighting, and other direct production overhead for that part."
+                                "Cost estimation guidance:\n"
+                                "- Consider typical European manufacturing labor rates (€20-50/hour depending on skill)\n"
+                                "- Consider typical industrial electricity rates (€0.15-0.30/kWh)\n"
+                                "- For small machined parts: labor is typically €0.50-5.00, electricity €0.10-1.00\n"
+                                "- For larger assemblies: labor can be €5-50, electricity €1-10\n"
+                                "- Other manufacturing costs typically add 20-40% on top of direct labor and material\n"
+                                "- The TOTAL cost (materials + labor + electricity + other) should reasonably align with the market price if provided\n"
+                                "- If market price is low, all non-material costs must be correspondingly low\n"
                                 "\n"
                                 "Return the structured data with:\n"
                                 "- indices: list of materials with their IndexName and quantity in grams\n"
                                 "- total_weight_grams: total product weight in grams\n"
                                 "- unit: always 'g'\n"
-                                "- labor_hours: total labor hours consumed per unit (float)\n"
-                                "- electricity_kwh: total electricity consumption per unit (float)\n"
-                                "\n"
-                                "Calibration guidance:\n"
-                                "- For small fittings or machined components, direct labor should rarely exceed a few minutes. Unless drawings clearly indicate long manual processing, keep labor estimates between 0.03 h and 0.25 h (≈2-15 minutes) per unit. Labor should typically account for less than 30% of the total article price.\n"
-                                "- Electricity usage per unit is typically modest (fractions of a single kWh up to ~5 kWh). Only exceed this if the spec explicitly describes very energy-intensive processing, and include the incremental energy for machinery, workstation lighting, and handling that is directly tied to producing one unit.\n"
-                                "- Combine the material, labor, and electricity contributions so that, together, they reasonably explain the article price noted above. If the market price is low, keep the non-material costs correspondingly low."
+                                "- labor_cost_eur: direct labor cost in EUR per unit\n"
+                                "- electricity_cost_eur: electricity cost in EUR per unit\n"
+                                "- other_manufacturing_costs_eur: all other manufacturing costs in EUR per unit"
                             ),
                         },
                     ]
@@ -237,7 +241,10 @@ def analyze_product_specification(
         logger.info(
             f"Successfully analyzed {filename}: "
             f"total_weight={parsed_response.total_weight_grams}g, "
-            f"materials={len(parsed_response.indices)}"
+            f"materials={len(parsed_response.indices)}, "
+            f"labor_cost={parsed_response.labor_cost_eur}€, "
+            f"electricity_cost={parsed_response.electricity_cost_eur}€, "
+            f"other_costs={parsed_response.other_manufacturing_costs_eur}€"
         )
         
         # Log the materials found

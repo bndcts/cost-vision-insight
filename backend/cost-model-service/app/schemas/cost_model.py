@@ -12,6 +12,7 @@ class CostModelBase(BaseModel):
     article_id: int
     index_id: int
     part: Decimal  # quantity attributed to this index (grams, hours, etc.)
+    direct_cost_eur: Optional[Decimal] = None  # direct EUR cost (overrides part * index_value)
 
 
 class CostModelCreate(CostModelBase):
@@ -20,6 +21,7 @@ class CostModelCreate(CostModelBase):
 
 class CostModelUpdate(BaseModel):
     part: Optional[Decimal] = None
+    direct_cost_eur: Optional[Decimal] = None
 
 
 class CostModelRead(CostModelBase):
