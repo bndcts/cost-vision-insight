@@ -4,6 +4,7 @@ import { LoadingOverlay } from "@/components/LoadingOverlay";
 import { CostBreakdown } from "@/components/CostBreakdown";
 import { PriceTrendChart } from "@/components/PriceTrendChart";
 import { MaterialCompositionChart } from "@/components/MaterialCompositionChart";
+import { SimilarArticles } from "@/components/SimilarArticles";
 import { Card } from "@/components/ui/card";
 import { AlertCircle, BarChart3 } from "lucide-react";
 import { useArticle, useArticleCostBreakdown } from "@/lib/api";
@@ -126,76 +127,6 @@ const Index = () => {
     : null;
 
   const totalCostValue = costBreakdownResponse?.total_cost ?? null;
-
-  // Mock data for demonstration
-  const mockPriceTrend = [
-    {
-      month: "Jan",
-      articlePrice: 100,
-      steelIndex: 100,
-      laborIndex: 100,
-      energyIndex: 100,
-    },
-    {
-      month: "Feb",
-      articlePrice: 103,
-      steelIndex: 105,
-      laborIndex: 102,
-      energyIndex: 98,
-    },
-    {
-      month: "Mar",
-      articlePrice: 108,
-      steelIndex: 112,
-      laborIndex: 103,
-      energyIndex: 103,
-    },
-    {
-      month: "Apr",
-      articlePrice: 106,
-      steelIndex: 110,
-      laborIndex: 104,
-      energyIndex: 107,
-    },
-    {
-      month: "May",
-      articlePrice: 112,
-      steelIndex: 118,
-      laborIndex: 105,
-      energyIndex: 110,
-    },
-    {
-      month: "Jun",
-      articlePrice: 115,
-      steelIndex: 120,
-      laborIndex: 106,
-      energyIndex: 108,
-    },
-  ];
-
-  const mockSimilarArticles = [
-    {
-      id: "1",
-      name: "Steel Bearing Housing Type A",
-      category: "Mechanical Parts",
-      similarity: 94,
-      costEstimate: 485.2,
-    },
-    {
-      id: "2",
-      name: "Precision Machined Flange",
-      category: "Industrial Components",
-      similarity: 87,
-      costEstimate: 512.5,
-    },
-    {
-      id: "3",
-      name: "Cast Steel Housing Unit",
-      category: "Mechanical Parts",
-      similarity: 82,
-      costEstimate: 445.75,
-    },
-  ];
 
   return (
     <div className="min-h-screen bg-background">
@@ -391,6 +322,9 @@ const Index = () => {
 
               {/* Price Trend Chart */}
               <PriceTrendChart articleId={createdArticleResponse?.id || null} />
+
+              {/* Similar Articles */}
+              <SimilarArticles articleId={createdArticleResponse?.id || null} />
             </section>
           </>
         )}

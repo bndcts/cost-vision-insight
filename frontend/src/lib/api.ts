@@ -74,6 +74,27 @@ export interface ArticleResponse {
   created_at: string;
 }
 
+export interface SimilarArticleCostComponent {
+  index_name: string;
+  quantity_grams: number;
+  unit: string;
+  is_material: boolean;
+}
+
+export interface SimilarArticleDetail {
+  id: number;
+  article_name: string;
+  unit_weight: number | null;
+  cost_estimate: number | null;
+  cost_components: SimilarArticleCostComponent[];
+}
+
+export interface SimilarArticlesResponse {
+  article_id: number;
+  article_name: string;
+  similar_articles: SimilarArticleDetail[];
+}
+
 async function fetchArticleIndicesValues(
   articleId: number
 ): Promise<ArticleIndicesValuesResponse> {
@@ -138,6 +159,20 @@ async function fetchArticlePriceHistory(
   return response.json();
 }
 
+async function fetchSimilarArticles(
+  articleId: number
+): Promise<SimilarArticlesResponse> {
+  const response = await fetch(
+    `${API_BASE_URL}/articles/${articleId}/similar-articles`
+  );
+
+  if (!response.ok) {
+    throw new Error("Failed to fetch similar articles");
+  }
+
+  return response.json();
+}
+
 export function useArticleIndicesValues(articleId: number | null) {
   return useQuery({
     queryKey: ["article-indices-values", articleId],
@@ -184,5 +219,14 @@ export function useArticlePriceHistory(articleId: number | null) {
     queryFn: () => fetchArticlePriceHistory(articleId!),
     enabled: articleId !== null,
     staleTime: 1000 * 60 * 5,
+  });
+}
+
+export function useSimilarArticles(articleId: number | null) {
+  return useQuery({
+    queryKey: ["similar-articles", articleId],
+    queryFn: () => fetchSimilarArticles(articleId!),
+    enabled: articleId !== null,
+    staleTime: 1000 * 60 * 10, // 10 minutes - similar articles don't change frequently
   });
 }

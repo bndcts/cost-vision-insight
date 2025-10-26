@@ -461,3 +461,128 @@ async def get_article_price_history(
         article_name=article.article_name,
         points=price_points,
     )
+
+
+class SimilarArticleCostComponent(BaseModel):
+    """Cost component from a similar article's cost model"""
+    index_name: str
+    quantity_grams: float
+    unit: str
+    is_material: bool
+
+
+class SimilarArticleDetail(BaseModel):
+    """Details of a similar article"""
+    id: int
+    article_name: str
+    unit_weight: Optional[float] = None
+    cost_estimate: Optional[float] = None
+    cost_components: list[SimilarArticleCostComponent] = []
+
+
+class SimilarArticlesResponse(BaseModel):
+    """Response containing similar articles with their cost models"""
+    article_id: int
+    article_name: str
+    similar_articles: list[SimilarArticleDetail]
+
+
+@router.get("/{article_id}/similar-articles", response_model=SimilarArticlesResponse)
+async def get_similar_articles(
+    article_id: int, db: AsyncSession = Depends(get_db)
+) -> SimilarArticlesResponse:
+    """
+    Get similar articles found via vector similarity search.
+    
+    Returns details about each similar article including their cost models
+    and estimated costs for comparison.
+    """
+    article = await db.get(Article, article_id)
+    if not article:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Article not found")
+    
+    # Get the list of similar article IDs
+    similar_article_ids = article.similar_articles or []
+    
+    if not similar_article_ids:
+        return SimilarArticlesResponse(
+            article_id=article.id,
+            article_name=article.article_name,
+            similar_articles=[]
+        )
+    
+    # Fetch the similar articles
+    similar_articles_result = await db.execute(
+        select(Article).where(Article.id.in_(similar_article_ids))
+    )
+    similar_articles = similar_articles_result.scalars().all()
+    
+    # Build the response with cost models for each similar article
+    similar_article_details: list[SimilarArticleDetail] = []
+    
+    for similar_article in similar_articles:
+        # Get cost models for this similar article
+        cost_models_result = await db.execute(
+            select(CostModel, Index)
+            .join(Index, CostModel.index_id == Index.id)
+            .where(CostModel.article_id == similar_article.id)
+            .order_by(Index.id.asc(), Index.date.desc())
+        )
+        
+        # Get latest index values
+        cost_models_data = cost_models_result.all()
+        latest_indices: dict[int, Index] = {}
+        cost_models_by_index: dict[int, CostModel] = {}
+        
+        for cm, idx in cost_models_data:
+            if idx.id not in latest_indices:
+                latest_indices[idx.id] = idx
+                cost_models_by_index[idx.id] = cm
+        
+        # Calculate cost components and total cost estimate
+        cost_components: list[SimilarArticleCostComponent] = []
+        total_cost = 0.0
+        
+        for index_id, cm in cost_models_by_index.items():
+            idx = latest_indices[index_id]
+            is_material = _is_material_unit(idx.unit)
+            
+            # Calculate cost contribution
+            if cm.direct_cost_eur is not None:
+                cost_contribution = float(cm.direct_cost_eur)
+            elif idx.value_per_gram is not None:
+                cost_contribution = float(cm.part) * float(idx.value_per_gram)
+            elif idx.price_factor and idx.price_factor != 0:
+                cost_contribution = (float(idx.value) / float(idx.price_factor)) * float(cm.part)
+            else:
+                cost_contribution = float(idx.value) * float(cm.part)
+            
+            total_cost += cost_contribution
+            
+            cost_components.append(
+                SimilarArticleCostComponent(
+                    index_name=idx.name,
+                    quantity_grams=float(cm.part),
+                    unit=idx.unit or "",
+                    is_material=is_material
+                )
+            )
+        
+        # Apply overhead (15%) to get final cost estimate
+        total_cost_with_overhead = total_cost * 1.15
+        
+        similar_article_details.append(
+            SimilarArticleDetail(
+                id=similar_article.id,
+                article_name=similar_article.article_name,
+                unit_weight=float(similar_article.unit_weight) if similar_article.unit_weight else None,
+                cost_estimate=round(total_cost_with_overhead, 2),
+                cost_components=cost_components
+            )
+        )
+    
+    return SimilarArticlesResponse(
+        article_id=article.id,
+        article_name=article.article_name,
+        similar_articles=similar_article_details
+    )
