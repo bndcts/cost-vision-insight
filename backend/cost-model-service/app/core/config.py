@@ -19,7 +19,7 @@ class Settings(BaseSettings):
     # Weaviate Configuration
     weaviate_url: str | None = None
     weaviate_api_key: str | None = None
-    weaviate_similarity_threshold: float = Field(default=0.9)
+    weaviate_similarity_threshold: float = Field(default=0.7)
     weaviate_top_k: int = Field(default=2)
 
     class Config:
