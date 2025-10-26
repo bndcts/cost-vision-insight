@@ -24,6 +24,19 @@ export interface ArticleIndicesValuesResponse {
   indices: ArticleIndexData[];
 }
 
+export interface ArticleCostBreakdownResponse {
+  article_id: number;
+  article_name: string;
+  currency: string;
+  article_price: number | null;
+  materials_cost: number;
+  labor_cost: number;
+  electricity_cost: number;
+  overhead_cost: number;
+  profit_margin: number;
+  total_cost: number;
+}
+
 export interface ArticlePricePoint {
   order_id: number;
   order_date: string;
@@ -97,6 +110,20 @@ async function fetchArticle(articleId: number): Promise<ArticleResponse> {
   return response.json();
 }
 
+async function fetchArticleCostBreakdown(
+  articleId: number
+): Promise<ArticleCostBreakdownResponse> {
+  const response = await fetch(
+    `${API_BASE_URL}/articles/${articleId}/cost-breakdown`
+  );
+
+  if (!response.ok) {
+    throw new Error("Failed to fetch cost breakdown");
+  }
+
+  return response.json();
+}
+
 async function fetchArticlePriceHistory(
   articleId: number
 ): Promise<ArticlePriceHistoryResponse> {
@@ -139,6 +166,14 @@ export function useArticle(articleId: number | null) {
   return useQuery({
     queryKey: ["article", articleId],
     queryFn: () => fetchArticle(articleId!),
+    enabled: articleId !== null,
+  });
+}
+
+export function useArticleCostBreakdown(articleId: number | null) {
+  return useQuery({
+    queryKey: ["article-cost-breakdown", articleId],
+    queryFn: () => fetchArticleCostBreakdown(articleId!),
     enabled: articleId !== null,
   });
 }

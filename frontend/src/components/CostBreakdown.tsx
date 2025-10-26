@@ -1,24 +1,75 @@
 import { Card } from "@/components/ui/card";
-import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from "recharts";
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
 
 export interface CostData {
   materials: number;
   labor: number;
+  electricity: number;
   overhead: number;
   profit: number;
 }
 
 interface CostBreakdownProps {
-  data: CostData;
-  totalCost: number;
+  data: CostData | null;
+  totalCost: number | null;
+  currency?: string;
+  isLoading?: boolean;
 }
 
-export const CostBreakdown = ({ data, totalCost }: CostBreakdownProps) => {
+const colorRamp = [
+  "hsl(var(--chart-1))",
+  "hsl(var(--chart-2))",
+  "hsl(var(--chart-3))",
+  "hsl(var(--chart-4))",
+  "hsl(var(--chart-5))",
+];
+
+const currencyFormatter = (currency: string) =>
+  new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency,
+    maximumFractionDigits: 2,
+  });
+
+export const CostBreakdown = ({
+  data,
+  totalCost,
+  currency = "EUR",
+  isLoading = false,
+}: CostBreakdownProps) => {
+  const formatter = currencyFormatter(currency);
+  const pieLabel = ({
+    percent,
+  }: {
+    percent: number;
+  }) => `${(percent * 100).toFixed(0)}%`;
+
+  if (isLoading) {
+    return (
+      <Card className="p-6 shadow-lg">
+        <h3 className="text-xl font-bold mb-6">Cost Breakdown</h3>
+        <p className="text-muted-foreground text-sm">Loading cost data...</p>
+      </Card>
+    );
+  }
+
+  if (!data || totalCost === null) {
+    return (
+      <Card className="p-6 shadow-lg">
+        <h3 className="text-xl font-bold mb-6">Cost Breakdown</h3>
+        <p className="text-muted-foreground text-sm">
+          Run an analysis to view cost contributions for this article.
+        </p>
+      </Card>
+    );
+  }
+
   const chartData = [
-    { name: "Raw Materials", value: data.materials, color: "hsl(var(--chart-1))" },
-    { name: "Labor", value: data.labor, color: "hsl(var(--chart-2))" },
-    { name: "Overhead", value: data.overhead, color: "hsl(var(--chart-3))" },
-    { name: "Profit Margin", value: data.profit, color: "hsl(var(--chart-4))" },
+    { name: "Raw Materials", value: data.materials, color: colorRamp[0] },
+    { name: "Labor", value: data.labor, color: colorRamp[1] },
+    { name: "Electricity", value: data.electricity, color: colorRamp[2] },
+    { name: "Overhead (20%)", value: data.overhead, color: colorRamp[3] },
+    { name: "Profit Margin", value: data.profit, color: colorRamp[4] },
   ];
 
   return (
@@ -34,7 +85,7 @@ export const CostBreakdown = ({ data, totalCost }: CostBreakdownProps) => {
                 cx="50%"
                 cy="50%"
                 labelLine={false}
-                label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                label={pieLabel}
                 outerRadius={80}
                 fill="#8884d8"
                 dataKey="value"
@@ -43,7 +94,9 @@ export const CostBreakdown = ({ data, totalCost }: CostBreakdownProps) => {
                   <Cell key={`cell-${index}`} fill={entry.color} />
                 ))}
               </Pie>
-              <Tooltip formatter={(value: number) => `$${value.toFixed(2)}`} />
+              <Tooltip
+                formatter={(value: number) => formatter.format(value)}
+              />
             </PieChart>
           </ResponsiveContainer>
         </div>
@@ -51,7 +104,9 @@ export const CostBreakdown = ({ data, totalCost }: CostBreakdownProps) => {
         <div className="space-y-4">
           <div className="flex justify-between items-center p-4 bg-muted rounded-lg">
             <span className="font-semibold">Total Cost</span>
-            <span className="text-2xl font-bold text-primary">${totalCost.toFixed(2)}</span>
+            <span className="text-2xl font-bold text-primary">
+              {formatter.format(totalCost)}
+            </span>
           </div>
           
           {chartData.map((item) => (
@@ -63,7 +118,9 @@ export const CostBreakdown = ({ data, totalCost }: CostBreakdownProps) => {
                 />
                 <span className="text-sm font-medium">{item.name}</span>
               </div>
-              <span className="font-semibold">${item.value.toFixed(2)}</span>
+              <span className="font-semibold">
+                {formatter.format(item.value)}
+              </span>
             </div>
           ))}
         </div>

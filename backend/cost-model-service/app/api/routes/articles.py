@@ -13,6 +13,44 @@ from app.models.index import Index
 from app.models.order import Order
 from app.schemas.article import ArticleCreate, ArticleRead, ArticleUpdate
 
+LABOR_INDEX_NAME = "Arbeitskosten Deutschland [€/h] (Eurostat)"
+ELECTRICITY_INDEX_NAME = "Strom [€/MWh] (Finanzen.net)"
+MASS_UNITS = {
+    "g",
+    "gram",
+    "grams",
+    "kg",
+    "kilogram",
+    "kilograms",
+    "t",
+    "ton",
+    "tons",
+    "tonne",
+    "tonnes",
+}
+
+
+def _is_material_unit(unit: str | None) -> bool:
+    if not unit:
+        return False
+    return unit.lower() in MASS_UNITS
+
+
+async def _latest_article_price(article: Article, db: AsyncSession) -> float | None:
+    stmt = (
+        select(Order.price)
+        .where(
+            or_(
+                Order.article_id == article.id,
+                Order.article_name == article.article_name,
+            )
+        )
+        .order_by(Order.order_date.desc())
+    )
+    result = await db.execute(stmt)
+    price_value = result.scalars().first()
+    return float(price_value) if price_value is not None else None
+
 router = APIRouter(prefix="/articles", tags=["articles"])
 
 
@@ -64,6 +102,20 @@ class ArticlePriceHistoryResponse(BaseModel):
     article_id: int
     article_name: str
     points: list[ArticlePricePoint]
+
+
+class ArticleCostBreakdownResponse(BaseModel):
+    """Cost contribution breakdown for visualization"""
+    article_id: int
+    article_name: str
+    currency: str = "EUR"
+    article_price: Optional[float] = None
+    materials_cost: float
+    labor_cost: float
+    electricity_cost: float
+    overhead_cost: float
+    profit_margin: float
+    total_cost: float
 
 
 @router.get("/", response_model=list[ArticleRead])
@@ -187,26 +239,6 @@ async def get_article_indices_values(
     )
     current_indices = current_indices_result.scalars().all()
     
-    # Helper to determine if an index represents a material (mass-based)
-    MASS_UNITS = {
-        "g",
-        "gram",
-        "grams",
-        "kg",
-        "kilogram",
-        "kilograms",
-        "t",
-        "ton",
-        "tons",
-        "tonne",
-        "tonnes",
-    }
-
-    def _is_material_unit(unit: str | None) -> bool:
-        if not unit:
-            return False
-        return unit.lower() in MASS_UNITS
-
     # Map index names to their quantity + metadata from cost models
     index_meta: dict[str, dict[str, float | str | bool]] = {}
     index_by_id = {idx.id: idx for idx in current_indices}
@@ -289,6 +321,82 @@ async def get_article_indices_values(
         article_id=article.id,
         article_name=article.article_name,
         indices=indices_list
+    )
+
+
+@router.get("/{article_id}/cost-breakdown", response_model=ArticleCostBreakdownResponse)
+async def get_article_cost_breakdown(
+    article_id: int, db: AsyncSession = Depends(get_db)
+) -> ArticleCostBreakdownResponse:
+    article = await db.get(Article, article_id)
+    if not article:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Article not found")
+
+    price_hint = await _latest_article_price(article, db)
+
+    cost_models_result = await db.execute(
+        select(CostModel).where(CostModel.article_id == article_id)
+    )
+    cost_models = cost_models_result.scalars().all()
+
+    materials_cost = 0.0
+    labor_cost = 0.0
+    electricity_cost = 0.0
+
+    if cost_models:
+        index_ids = [cm.index_id for cm in cost_models]
+        indices_result = await db.execute(
+            select(Index)
+            .where(Index.id.in_(index_ids))
+            .order_by(Index.id.asc(), Index.date.desc())
+        )
+        latest_by_id: dict[int, Index] = {}
+        for idx in indices_result.scalars():
+            if idx.id not in latest_by_id:
+                latest_by_id[idx.id] = idx
+
+        for cm in cost_models:
+            latest_index = latest_by_id.get(cm.index_id)
+            if not latest_index:
+                continue
+
+            quantity = float(cm.part)
+            value = float(latest_index.value or 0)
+
+            if latest_index.name == LABOR_INDEX_NAME:
+                labor_cost += quantity * value
+                continue
+
+            if latest_index.name == ELECTRICITY_INDEX_NAME:
+                electricity_cost += quantity * value
+                continue
+
+            if latest_index.value_per_gram is not None:
+                materials_cost += quantity * float(latest_index.value_per_gram)
+            elif latest_index.price_factor and latest_index.price_factor != 0:
+                materials_cost += (value / float(latest_index.price_factor)) * quantity
+            else:
+                materials_cost += value * quantity
+
+    subtotal = materials_cost + labor_cost + electricity_cost
+    overhead_cost = subtotal * 0.15
+    base_cost = subtotal + overhead_cost
+
+    total_cost = price_hint if price_hint is not None else base_cost
+    profit_margin = (
+        price_hint - base_cost if price_hint is not None else 0.0
+    )
+
+    return ArticleCostBreakdownResponse(
+        article_id=article.id,
+        article_name=article.article_name,
+        article_price=price_hint,
+        materials_cost=materials_cost,
+        labor_cost=labor_cost,
+        electricity_cost=electricity_cost,
+        overhead_cost=overhead_cost,
+        profit_margin=profit_margin,
+        total_cost=total_cost,
     )
 
 

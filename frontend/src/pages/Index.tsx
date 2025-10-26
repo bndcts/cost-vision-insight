@@ -11,7 +11,7 @@ import { SimilarArticles } from "@/components/SimilarArticles";
 import { Model3DViewer } from "@/components/Model3DViewer";
 import { Card } from "@/components/ui/card";
 import { AlertCircle, BarChart3 } from "lucide-react";
-import { useArticle } from "@/lib/api";
+import { useArticle, useArticleCostBreakdown } from "@/lib/api";
 
 interface ArticleResponse {
   id: number;
@@ -38,6 +38,8 @@ const Index = () => {
   const { data: createdArticleResponse } = useArticle(
     showResults ? createdArticleId : null
   );
+  const { data: costBreakdownResponse, isLoading: costBreakdownLoading } =
+    useArticleCostBreakdown(showResults ? createdArticleId : null);
 
   const handleAnalyze = async (data: ArticleData) => {
     setArticleData(data);
@@ -118,16 +120,19 @@ const Index = () => {
     setProcessingError(error);
   };
 
+  const costBreakdownData = costBreakdownResponse
+    ? {
+        materials: costBreakdownResponse.materials_cost,
+        labor: costBreakdownResponse.labor_cost,
+        electricity: costBreakdownResponse.electricity_cost,
+        overhead: costBreakdownResponse.overhead_cost,
+        profit: costBreakdownResponse.profit_margin,
+      }
+    : null;
+
+  const totalCostValue = costBreakdownResponse?.total_cost ?? null;
+
   // Mock data for demonstration
-  const mockCostData = {
-    materials: 245.5,
-    labor: 125.75,
-    overhead: 85.25,
-    profit: 43.5,
-  };
-
-  const mockTotalCost = Object.values(mockCostData).reduce((a, b) => a + b, 0);
-
   const mockPriceTrend = [
     {
       month: "Jan",
@@ -376,7 +381,12 @@ const Index = () => {
 
               {/* Cost Breakdown and 3D Model */}
               <div className="grid lg:grid-cols-2 gap-8">
-                <CostBreakdown data={mockCostData} totalCost={mockTotalCost} />
+                <CostBreakdown
+                  data={costBreakdownData}
+                  totalCost={totalCostValue}
+                  currency={costBreakdownResponse?.currency ?? "EUR"}
+                  isLoading={costBreakdownLoading && !!createdArticleResponse}
+                />
                 <Model3DViewer />
               </div>
 
