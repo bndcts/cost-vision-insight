@@ -4,11 +4,6 @@ import { LoadingOverlay } from "@/components/LoadingOverlay";
 import { CostBreakdown } from "@/components/CostBreakdown";
 import { PriceTrendChart } from "@/components/PriceTrendChart";
 import { MaterialCompositionChart } from "@/components/MaterialCompositionChart";
-import { IndicesTable } from "@/components/IndicesTable";
-import { ArticlesTable } from "@/components/ArticlesTable";
-import { CostModelsTable } from "@/components/CostModelsTable";
-import { SimilarArticles } from "@/components/SimilarArticles";
-import { Model3DViewer } from "@/components/Model3DViewer";
 import { Card } from "@/components/ui/card";
 import { AlertCircle, BarChart3 } from "lucide-react";
 import { useArticle, useArticleCostBreakdown } from "@/lib/api";
@@ -387,7 +382,6 @@ const Index = () => {
                   currency={costBreakdownResponse?.currency ?? "EUR"}
                   isLoading={costBreakdownLoading && !!createdArticleResponse}
                 />
-                <Model3DViewer />
               </div>
 
               {/* Material Composition Spider Chart */}
@@ -397,16 +391,6 @@ const Index = () => {
 
               {/* Price Trend Chart */}
               <PriceTrendChart articleId={createdArticleResponse?.id || null} />
-
-              {/* Database Tables */}
-              <div className="space-y-6">
-                <IndicesTable />
-                <ArticlesTable />
-                <CostModelsTable />
-              </div>
-
-              {/* Similar Articles */}
-              <SimilarArticles articles={mockSimilarArticles} />
             </section>
           </>
         )}
