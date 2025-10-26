@@ -50,6 +50,7 @@ docker-compose up --build
 ```
 
 **Access:**
+
 - Frontend: http://localhost:5173
 - Backend API: http://localhost:8000
 - API Docs: http://localhost:8000/docs
@@ -119,6 +120,7 @@ alembic downgrade -1
 Full documentation: http://localhost:8000/docs
 
 **Core Endpoints:**
+
 - `GET /api/v1/health` - Health check
 - `POST/GET /api/v1/articles` - Article management
 - `POST /api/v1/estimates` - Generate cost estimates
@@ -159,9 +161,11 @@ cost-vision-insight/
 ## Environment Variables
 
 **Required:**
+
 - `CMS_OPENAI_API_KEY` - OpenAI API key
 
 **Optional:**
+
 - `CMS_OPENAI_MODEL` (default: `gpt-4o-mini`)
 - `CMS_WEAVIATE_URL` - Weaviate cluster URL
 - `CMS_WEAVIATE_API_KEY` - Weaviate API key
@@ -171,12 +175,14 @@ cost-vision-insight/
 ## Troubleshooting
 
 **Services not starting:**
+
 ```bash
 docker-compose logs [service-name]
 docker-compose down -v && docker-compose up --build
 ```
 
 **Port already in use:**
+
 ```bash
 lsof -i :8000  # Backend
 lsof -i :5173  # Frontend
@@ -184,6 +190,7 @@ lsof -i :5432  # Database
 ```
 
 **Database issues:**
+
 ```bash
 docker-compose restart cost-model-db
 # Or clean restart:
@@ -191,6 +198,7 @@ docker-compose down -v && docker-compose up
 ```
 
 **Missing OpenAI key:**
+
 ```bash
 # Verify .env file exists and contains key
 cat .env | grep OPENAI_API_KEY

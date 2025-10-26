@@ -63,24 +63,31 @@ frontend/
 ## Key Components
 
 ### ArticleInput
+
 Form for creating articles with file upload support.
 
 ### CostBreakdown
+
 Displays material, labor, and overhead costs with totals.
 
 ### MaterialCompositionChart
+
 Interactive pie chart showing material composition.
 
 ### PriceTrendChart
+
 Line chart for price trends over time.
 
 ### SimilarArticles
+
 List of semantically similar articles from RAG search.
 
 ### UI Components (shadcn/ui)
+
 40+ pre-built components including Button, Card, Dialog, Table, Chart, Form components, etc.
 
 **Add new component:**
+
 ```bash
 npx shadcn@latest add [component-name]
 ```
@@ -90,6 +97,7 @@ npx shadcn@latest add [component-name]
 ### Environment Variables
 
 Create `.env.local`:
+
 ```bash
 VITE_API_URL=http://localhost:8000/api/v1
 ```
@@ -108,13 +116,14 @@ pnpm lint         # Run ESLint
 API client in `src/lib/api.ts` uses fetch with React Query for caching and state management.
 
 **Example:**
+
 ```typescript
-import { useQuery } from '@tanstack/react-query';
-import { api } from '@/lib/api';
+import { useQuery } from "@tanstack/react-query";
+import { api } from "@/lib/api";
 
 const { data, isLoading } = useQuery({
-  queryKey: ['articles'],
-  queryFn: api.getArticles
+  queryKey: ["articles"],
+  queryFn: api.getArticles,
 });
 ```
 
@@ -124,7 +133,9 @@ const { data, isLoading } = useQuery({
 
 ```tsx
 <div className="flex items-center p-4 bg-white rounded-lg shadow">
-  <Button variant="outline" size="sm">Action</Button>
+  <Button variant="outline" size="sm">
+    Action
+  </Button>
 </div>
 ```
 

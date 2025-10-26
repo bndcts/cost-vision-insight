@@ -43,6 +43,7 @@ uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
 **Access:**
+
 - API: http://localhost:8000
 - Swagger Docs: http://localhost:8000/docs
 - ReDoc: http://localhost:8000/redoc
@@ -109,16 +110,20 @@ GET  /api/v1/orders/{id}          # Get by ID
 ### Main Tables
 
 **articles** - Product information
+
 - `id` (UUID), `name`, `description`, `weight_grams`, `materials` (JSON), `processes` (JSON)
 - `file_path`, `file_name`, `processing_status`, `extracted_text`, `direct_cost_eur`
 
 **indices** - Price index data
+
 - `id` (UUID), `name`, `date`, `value`, `unit`, `value_per_gram`, `category`
 
 **cost_models** - Article-to-index relationships
+
 - `id` (UUID), `article_id` (FK), `index_id` (FK), `weight`, `description`
 
 **orders** - Historical order data
+
 - `id` (UUID), `article_name`, `quantity`, `unit_price`, `total_price`, `order_date`, `supplier`
 
 ### Migrations
@@ -140,15 +145,19 @@ alembic current
 ## Services
 
 ### OpenAI Client
+
 Handles GPT-4 integration for text analysis and specification extraction.
 
 ### Article Processor
+
 Processes uploaded documents (PDF/text), extracts specifications using OpenAI, updates articles asynchronously.
 
 ### Weaviate Service
+
 Manages vector embeddings and semantic similarity search for finding related articles.
 
 ### Cost Model Builder
+
 Builds and manages cost models linking articles to price indices.
 
 ## Development
@@ -229,6 +238,7 @@ CMD ["gunicorn", "app.main:app", \
 ```
 
 **Environment:**
+
 - Use secrets management (not .env files)
 - Set `CMS_ENV=production`
 - Use managed PostgreSQL
