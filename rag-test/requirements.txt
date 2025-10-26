@@ -1,6 +1,0 @@
-weaviate-client==4.6.6
-pydantic>=1.10,<3
-# Optional but recommended for token-aware chunking
-tiktoken>=0.6
-# Optional for PDF extraction
-PyMuPDF>=1.24
